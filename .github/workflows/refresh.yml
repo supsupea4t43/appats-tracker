@@ -1,0 +1,46 @@
+# Rebuilds the tracker page (index.html) from live prices every morning, whenever a file in live_chart/ changes,
+# or when someone presses "Run workflow" on the Actions tab. GitHub Pages then publishes the new page.
+# If a source fails, the job fails (GitHub emails the owner) and the page keeps the last good data.
+name: Refresh tracker
+
+on:
+  schedule:
+    - cron: "0 5 * * *"   # 05:00 UTC, about 07:00 in Spain in summer and 06:00 in winter
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "live_chart/**"
+      - ".github/workflows/refresh.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fetch live prices and rebuild the page
+        shell: powershell
+        run: .\live_chart\refresh.ps1 -NoPng -Public -OutFile index.html
+
+      - name: Save the new page
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Continue'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html live_chart/data.json live_chart/summary.txt
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit --quiet -m "Daily refresh"
+            git pull --rebase --quiet
+            git push --quiet
+          }

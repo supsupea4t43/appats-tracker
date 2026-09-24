@@ -1,0 +1,7 @@
+maker,match,spanish,catalan,source,note
+OpenAI,^gpt-oss,,,,"Open-weight model; its language list has not been checked."
+OpenAI,,named,named,https://help.openai.com/en/articles/8357869-how-to-change-your-language-setting-in-chatgpt,"ChatGPT's list of supported languages names Catalan and Spanish."
+Google,^Gemini,named,named,https://firebase.google.com/docs/ai-logic/models,"Gemini's list of supported languages names Catalan (ca) and Spanish (es)."
+Alibaba,,named,named,https://qwenlm.github.io/blog/qwen3/,"Qwen3 supports 119 languages and dialects, including Catalan and Spanish."
+Mistral,,named,named,https://docs.mistral.ai/resources/languages,"Mistral's supported-languages page names Catalan and Spanish."
+Anthropic,,named,general,https://docs.claude.com/en/docs/build-with-claude/multilingual-support,"Spanish is benchmarked; Claude handles most world languages, but Catalan is not named."

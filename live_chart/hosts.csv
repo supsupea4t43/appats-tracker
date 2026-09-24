@@ -1,0 +1,35 @@
+host,dpa,source,note,train,retain,eu,checked
+OpenAI,yes,https://openai.com/policies/data-processing-addendum/,"DPA covers the API. EU data residency (EEA and Switzerland) with zero data retention needs OpenAI's approval.",,,,2026-09-23
+Anthropic,yes,https://www.anthropic.com/legal/data-processing-addendum,"DPA incorporated into the commercial terms; zero data retention by separate agreement.",,,,2026-09-23
+Google,yes,https://cloud.google.com/terms/data-processing-addendum,"Cloud Data Processing Addendum covers Vertex AI; EU regions available.",,,,2026-09-23
+Azure,yes,https://www.microsoft.com/licensing/docs/view/Microsoft-Products-and-Services-Data-Protection-Addendum-DPA,"Microsoft Products and Services DPA; EU regions available.",,,,2026-09-23
+Amazon Bedrock,yes,https://d1.awsstatic.com/legal/aws-dpa/aws-dpa.pdf,"AWS DPA is part of the AWS Customer Agreement; EU regions available.",,,,2026-09-23
+Mistral,yes,https://legal.mistral.ai/terms/data-processing-addendum/,"French company; API data hosted in the EU by default.",,,yes,2026-09-23
+SpaceXAI,yes,https://x.ai/legal/data-processing-addendum,"DPA for API and business services; 30-day retention unless zero data retention is enabled.",,,,2026-09-23
+Alibaba Cloud,yes,https://www.alibabacloud.com/help/en/legal/latest/fe2cxg,"DPA with SCCs; international Model Studio runs in Singapore.",,,,2026-09-23
+Groq,yes,https://console.groq.com/docs/legal/customer-data-processing-addendum,"DPA with SCCs; customer data held in the US.",,,,2026-09-23
+Together AI,yes,https://cdn.prod.website-files.com/5ce11396d0cadb55a02cabf7/696024ff5649fb30b125686c_Together%20DPA%20(Website).pdf,"DPA attached to the Master Services Agreement.",,,,2026-09-23
+Fireworks,yes,https://fireworks.ai/dpa,"DPA incorporated into the terms of service, with SCCs.",,,,2026-09-23
+Nebius,yes,https://docs.nebius.com/legal/dpa,"Dutch company (Nebius B.V.); data location selectable.",,,,2026-09-23
+Baseten,yes,https://www.baseten.co/dpa,,,,,2026-09-23
+Cloudflare,yes,https://www.cloudflare.com/cloudflare-customer-dpa/,"One DPA for all Cloudflare services.",,,,2026-09-23
+CoreWeave,yes,https://docs.coreweave.com/docs/policies/terms-of-service/data-processing-agreement,,,,,2026-09-23
+DigitalOcean,yes,https://www.digitalocean.com/trust/gdpr-at-do,"Inputs and outputs are not stored or used for training.",,,,2026-09-23
+Databricks,yes,https://www.databricks.com/legal/databricks-data-processing-addendum,,,,,2026-09-23
+Sail Research,yes,https://docs.sailresearch.com/dpa,,,,,2026-09-23
+Scaleway,yes,https://www-uploads.scaleway.com/DPA_2024_ENG_b0abb5cc26.pdf,"French company; data stays in Europe; zero data retention by default.",no,no,yes,2026-09-23
+Inceptron,yes,https://opper.ai/provider/inceptron,"Swedish company; EU-only processing. From Opper's provider directory; confirm with Inceptron.",,,yes,2026-09-23
+NextBit,yes,https://opper.ai/provider/nextbit,"Spanish company with its own data centre in Spain. From Opper's provider directory; confirm with NextBit.",,,yes,2026-09-23
+Cheaper Inference,yes,https://www.cheaperinference.com/legal/dpa,"Reseller. The DPA allows transfers outside the EU and keeps logs for up to 12 months; it is silent on training.",,yes,,2026-09-23
+OpenRouter,request,https://openrouter.ai/pricing,"Signed DPA on request with the Business plan (8% fee), which also enables EU in-region routing.",,,,2026-09-23
+DeepSeek,no,https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html,"No GDPR Art. 28 DPA found; data processed in China.",,,,2026-09-23
+Kimi,no,https://platform.kimi.ai/docs/agreement/modeluse,"No public DPA or SCCs for the hosted API.",,,,2026-09-23
+Zai,not found,https://docs.z.ai/legal-agreement/privacy-policy,"A DPA is reportedly available through sales but is not public; processing in Singapore.",,,,2026-09-23
+DeepInfra,not found,https://trust.deepinfra.com/,"No public DPA; ask through the trust centre.",,,,2026-09-23
+Novita,not found,https://novita.ai/legal/terms-of-service,,,,,2026-09-23
+SiliconFlow,not found,,,,,,2026-09-23
+GMI,not found,,,,,,2026-09-23
+Parasail,not found,https://www.parasail.io/,,,,,2026-09-23
+Crusoe,not found,https://www.crusoe.ai/cloud/managed-inference,,,,,2026-09-23
+Venice,not found,https://docs.venice.ai/overview/privacy,,,,,2026-09-23
+Phala,not found,https://phala.com/,,,,,2026-09-23

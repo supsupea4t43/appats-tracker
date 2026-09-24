@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--ROBOTS-->
+<title>Appats Model Tracker</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --tile: #f2f1ec;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --match: #2a78d6;
+    --match-soft: rgba(42, 120, 214, 0.12);
+    --cheap: #eb6834;
+    --other: #bdbcb5;
+    --good: #006300;
+    --tip-bg: #ffffff;
+    --tip-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --tile: #242422;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --match: #3987e5;
+      --match-soft: rgba(57, 135, 229, 0.22);
+      --cheap: #d95926;
+      --other: #5d5c58;
+      --good: #0ca30c;
+      --tip-bg: #242423;
+      --tip-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --tile: #242422;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --match: #3987e5;
+    --match-soft: rgba(57, 135, 229, 0.22);
+    --cheap: #d95926;
+    --other: #5d5c58;
+    --good: #0ca30c;
+    --tip-bg: #242423;
+    --tip-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .viz-root { max-width: 1360px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 40px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 20px 16px; }
+  h1 { font-size: 22px; font-weight: 600; line-height: 1.25; margin: 0 0 6px; text-wrap: balance; }
+  .sub { font-size: 14px; color: var(--ink-2); line-height: 1.45; margin: 0 0 16px; }
+
+  .fbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin: 0 0 8px; }
+  .fbar h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .fcount { font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .btn { font: inherit; font-size: 13px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .btn:hover { color: var(--ink); }
+  .btn:focus-visible, .seg button:focus-visible, .curve-list button:focus-visible { outline: 2px solid var(--match); outline-offset: 1px; }
+  .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; margin: 0 0 18px; }
+  .fcard { background: var(--tile); border-radius: 10px; padding: 10px 12px 11px; border-left: 3px solid transparent; }
+  .fcard.on { border-left-color: var(--match); }
+  .fname { font-size: 13.5px; font-weight: 600; }
+  .fctl { margin: 8px 0 7px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button {
+    font: inherit; font-size: 12.5px; line-height: 1.3; padding: 4px 9px; border-radius: 6px; cursor: pointer; text-align: left;
+    border: 1px solid var(--axis); background: var(--surface); color: var(--ink-2);
+  }
+  .seg button[aria-pressed="true"] { background: var(--match-soft); border-color: var(--match); color: var(--ink); font-weight: 600; }
+  .fnote { font-size: 12px; color: var(--ink-2); line-height: 1.4; margin: 0; }
+  .impact { font-size: 12px; line-height: 1.4; margin: 5px 0 0; font-variant-numeric: tabular-nums; }
+  .impact.preview { color: var(--muted); }
+  .xfilter { display: none; font-size: 13.5px; color: var(--ink-2); line-height: 1.45; margin: 0 0 10px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+  @media (max-width: 1060px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--ink-2); margin: 0 0 4px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+  .key.in { background: var(--match); }
+  .key.out { background: var(--other); }
+  .key.curve { width: 24px; height: 0; border-radius: 0; border-top: 2px solid var(--ink); }
+  .key.curve-base { width: 24px; height: 0; border-radius: 0; border-top: 2px dashed var(--muted); }
+  .key-line { position: relative; display: inline-block; width: 26px; height: 12px; }
+  .key-line::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: var(--cheap); opacity: 0.8; }
+  .key-line::after { content: ""; position: absolute; left: 5px; top: 0; width: 2px; height: 12px; background: var(--cheap); box-shadow: 13px 0 0 var(--cheap); }
+
+  .chart-wrap { position: relative; margin-top: 4px; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  svg:focus { outline: none; }
+  svg:focus-visible { outline: 2px solid var(--match); outline-offset: 4px; border-radius: 4px; }
+  .grid { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+  .baseline { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
+  .tick { fill: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .axis-title { fill: var(--ink-2); font-size: 13px; }
+  .curve { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+  .curve-base { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .dot { stroke: var(--surface); stroke-width: 4; paint-order: stroke fill; }
+  .dot.in { fill: var(--match); }
+  .dot.out { fill: var(--other); }
+  .strip { stroke: var(--cheap); stroke-width: 1.5; opacity: 0.8; }
+  .ptick { stroke: var(--cheap); stroke-width: 2; }
+  .ring { fill: none; pointer-events: none; }
+  .ring.sel { stroke: var(--cheap); stroke-width: 2; }
+  .ring.hover { stroke: var(--ink); stroke-width: 1.5; }
+  .lbl { fill: var(--ink); font-size: 12.5px; font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+  .leader { stroke: var(--ink-2); stroke-width: 1; opacity: 0.6; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+
+  .panel { background: var(--tile); border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.45; }
+  @media (min-width: 1061px) { .panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; } }
+  .panel h2 { font-size: 16px; font-weight: 600; margin: 0 0 2px; text-wrap: balance; }
+  .panel h3 { font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+  .panel .meta, .panel .muted { color: var(--ink-2); margin: 0 0 10px; }
+  .panel .back { margin: 0 0 10px; }
+  .panel p.lang { margin: 0 0 4px; }
+  .status { margin: 0 0 10px; padding: 7px 9px; border-radius: 6px; background: var(--surface); border-left: 3px solid var(--axis); }
+  .status.st-in { border-left-color: var(--good); }
+  .stats { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; margin: 0; }
+  .stats dt { color: var(--ink-2); }
+  .stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  .plist { width: 100%; border-collapse: collapse; }
+  .plist td { padding: 6px 0; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  .plist td.cost { text-align: right; padding-left: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+  .plist tr.meets td:first-child { box-shadow: inset 3px 0 0 var(--good); padding-left: 8px; }
+  .plist tr.fails { opacity: 0.55; }
+  .pname { display: block; }
+  .src { display: block; font-size: 11.5px; color: var(--muted); }
+  .bar { display: block; height: 3px; margin-top: 4px; border-radius: 2px; background: var(--cheap); opacity: 0.6; }
+  .chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+  .chip { font-size: 11px; line-height: 1.35; padding: 0 6px; border-radius: 999px; border: 1px solid var(--axis); color: var(--ink-2); white-space: nowrap; }
+  .chip.ok { border-color: var(--good); color: var(--ink); }
+  .chip.ok::before { content: "✓ "; color: var(--good); }
+  .chip.no { color: var(--muted); text-decoration: line-through; }
+  .chip.unk { color: var(--muted); border-style: dashed; }
+  .chip.unk::after { content: " ?"; }
+  .chip-key { font-size: 11.5px; color: var(--muted); margin: 0 0 4px; }
+  .links { margin: 12px 0 0; color: var(--ink-2); }
+  .links a, .notes a, .panel a, table.data a { color: inherit; }
+  .curve-list { list-style: none; margin: 0; padding: 0; }
+  .curve-list li { border-bottom: 1px solid var(--grid); }
+  .curve-list button { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; padding: 6px 2px; cursor: pointer; }
+  .curve-list button:hover .cl-name { text-decoration: underline; }
+  .cl-name { display: block; font-weight: 600; }
+  .cl-meta { display: block; color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  .notes { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; margin: 14px 0 0; max-width: 125ch; }
+  .notes p { margin: 0 0 4px; }
+  .notes b { color: var(--ink); font-weight: 600; }
+  .tip {
+    position: absolute; pointer-events: none; z-index: 5; max-width: 340px;
+    background: var(--tip-bg); color: var(--ink); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: var(--tip-shadow); padding: 8px 10px; font-size: 12.5px; line-height: 1.45;
+  }
+  .tip b { font-weight: 600; }
+  .tip .m { color: var(--ink-2); }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; font-size: 14px; color: var(--ink-2); }
+  .only { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); margin: 10px 0 0; cursor: pointer; }
+  .only input { accent-color: var(--match); margin: 0; }
+  .table-scroll { overflow-x: auto; margin-top: 10px; }
+  table.data { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.data th, table.data td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  table.data th { color: var(--ink-2); font-weight: 600; }
+  table.data th button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  table.data th button:focus-visible, table.data tr:focus-visible { outline: 2px solid var(--match); outline-offset: 2px; }
+  table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.data td.wrap { white-space: normal; min-width: 220px; }
+  table.data tbody tr.pick-row { cursor: pointer; }
+  table.data tbody tr.pick-row:hover { background: var(--tile); }
+  table.data tbody tr.out td { color: var(--muted); }
+  .sw { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+
+  html.export body { background: var(--surface); }
+  html.export .viz-root { max-width: none; width: 900px; margin: 0; padding: 0; }
+  html.export .card { border: 0; border-radius: 0; padding: 22px 24px 18px; }
+  html.export .layout { grid-template-columns: minmax(0, 1fr); }
+  html.export .filters, html.export .panel, html.export .hint, html.export details, html.export .tip, html.export .live-only { display: none !important; }
+  html.export .xfilter { display: block; }
+  html.public .internal { display: none !important; }
+
+  @media (max-width: 640px) {
+    h1 { font-size: 19px; }
+    .card { padding: 14px 12px 12px; }
+    .viz-root { padding-block: 16px 32px; }
+    .fgrid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<main class="viz-root">
+  <section class="card" id="card">
+    <h1>Intelligence vs cost per task across AI models and providers</h1>
+    <p class="sub" id="sub"></p>
+    <section class="filters" aria-labelledby="filters-title">
+      <div class="fbar">
+        <h2 id="filters-title">Appats' requirements</h2>
+        <span class="fcount" id="fcount" aria-live="polite"></span>
+        <button type="button" class="btn" id="all-req">Apply all requirements</button>
+        <button type="button" class="btn" id="reset" hidden>Reset</button>
+      </div>
+      <div class="fgrid" id="fgrid"></div>
+    </section>
+    <p class="xfilter" id="xfilter"></p>
+    <div class="layout">
+      <div>
+        <div class="legend" id="legend"></div>
+        <div class="chart-wrap" id="wrap">
+          <svg id="chart" role="img" tabindex="0" aria-labelledby="chart-title chart-desc">
+            <title id="chart-title">Artificial Analysis Intelligence Index against cost per task for each model</title>
+            <desc id="chart-desc">Scatter plot on a log cost axis. Blue dots are models that meet the selected requirements, priced at the cheapest provider that meets them; grey dots are the other models at their cheapest provider. A staircase line marks the trade-off curve, the smartest matching model at each price; a dashed staircase shows the same curve without requirements. The table below the chart lists every value.</desc>
+          </svg>
+          <div class="tip" id="tip" hidden></div>
+        </div>
+        <p class="hint">Hover a dot for a summary; click it, or a table row, for every provider and what each one meets. In the chart, arrow keys move between models, Enter opens one and Escape goes back to the curve.</p>
+      </div>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+    <div class="notes" id="notes"></div>
+    <details id="table-view">
+      <summary>All models (sortable; click a row for its details)</summary>
+      <label class="only"><input type="checkbox" id="only-match"> Only models that meet the selected requirements</label>
+      <div class="table-scroll"><table class="data" id="tbl"></table></div>
+    </details>
+    <details id="prov-view">
+      <summary id="prov-summary">All providers</summary>
+      <div class="table-scroll"><table class="data" id="ptbl"></table></div>
+    </details>
+  </section>
+</main>
+
+<script>
+(function () {
+  // Filled by live_chart\refresh.ps1. Model fields: n name, s AA slug, cr maker, ii Intelligence Index, c cost per Index task
+  // (USD, AA reference price), refIn/refOut reference price per 1M tokens, ow open weights, dep superseded, rd release date,
+  // or OpenRouter id, lg languages {es, ca: named|general|'' , src, note, test {es, ca, date, note}},
+  // pv [provider, cost per task, source AA|AAP|OR|EU|CI, note, in, out, flags {k host, dpa, tr trains, rt retains, eu, tl tools}]
+  // cheapest first. META.providers rows: name, models, sources, EU seen, dpa, dpa source, note, trains, retains, days, HQ, data centres.
+  const META = /*META*/{}/*END*/;
+  const DATA = /*DATA*/[]/*END*/;
+  // true in the copy for the public link (refresh.ps1 -Public): our internal file paths are hidden.
+  const PUBLIC = /*PUBLIC*/false/*END*/;
+
+  const params = new URLSearchParams(location.search);
+  const EXPORT = params.has("export");
+  const root = document.documentElement;
+  if (EXPORT) { root.classList.add("export"); root.dataset.theme = "light"; }
+  if (PUBLIC) root.classList.add("public");
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  const fmt = v => "$" + (v >= 1 ? v.toFixed(2) : v >= 0.1 ? v.toFixed(3).replace(/0$/, "") : String(+v.toPrecision(3)));
+  const fmtTok = v => "$" + (v >= 0.1 ? v.toFixed(2) : String(+v.toPrecision(2)));
+  const pct = v => Math.round(v * 100) + "%";
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const fmtDate = s => { if (!s) return "n/a"; const [y, m, d] = s.split("-"); return `${+d} ${MONTHS[+m - 1]} ${y}`; };
+  const fmtStamp = iso => {
+    const d = new Date(iso);
+    if (isNaN(d)) return "unknown";
+    return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} UTC`;
+  };
+  const short = n => n.replace(" with fallback)", ")").replace(" (with fallback)", "");
+  const link = (url, text) => (url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text));
+  const SRC = { AA: "measured by Artificial Analysis", AAP: "estimate from the price Artificial Analysis lists", OR: "estimate from OpenRouter price", EU: "EU offering, estimate from its price", CI: "estimate from Cheaper Inference price" };
+  const SRC_SHORT = { AA: "Artificial Analysis (measured)", AAP: "Artificial Analysis (price only)", OR: "OpenRouter", EU: "EU offering", CI: "Cheaper Inference" };
+  const PROVIDERS = META.providers || [];
+
+  // ---------- requirements ----------
+  // Offering-level requirements: one provider has to meet all the selected ones at once.
+  const HOST_REQ = ["dpa", "eu", "train", "keep", "tools"];
+  const MEETS = {
+    dpa: f => f.dpa === "yes" || f.dpa === "request",
+    eu: f => f.eu === 1,
+    train: f => f.tr === 0,
+    keep: f => f.rt === 0,
+    tools: f => f.tl === 1
+  };
+  const REQ_LABEL = { dpa: "DPA", eu: "EU/EEA", train: "no training", keep: "keeps no data", tools: "tool calling" };
+  const REQ_MISSING = { dpa: "no provider with a DPA", eu: "no provider in the EU/EEA", train: "no provider that rules out training", keep: "no provider that keeps no data", tools: "no provider with tool calling" };
+  const DEFAULTS = { lang: "any", dpa: "any", eu: "any", train: "any", keep: "any", tools: "any" };
+  const ALL = { lang: "named", dpa: "req", eu: "req", train: "req", keep: "req", tools: "req" };
+  const clone = G => ({ ...G });
+  let F = clone(DEFAULTS);
+  {
+    // URL parameters preset the requirements; the PNG uses ?export=1&all=1.
+    const p = k => params.get(k);
+    if (p("all") === "1") F = clone(ALL);
+    if (["named", "tested"].includes(p("lang"))) F.lang = p("lang");
+    for (const [k, q] of [["dpa", "dpa"], ["eu", "eu"], ["train", "notrain"], ["keep", "noretain"], ["tools", "tools"]]) if (p(q) === "1") F[k] = "req";
+  }
+
+  const flagsOf = p => p[6] || {};
+  const priced = d => (d.pv || []).filter(p => p[1] != null);
+  const offerOK = (p, G) => HOST_REQ.every(k => G[k] !== "req" || MEETS[k](flagsOf(p)));
+  // The cheapest provider that meets G's offering-level requirements, or null.
+  function bestOffer(d, G) {
+    let b = null;
+    for (const p of priced(d)) if (offerOK(p, G) && (!b || p[1] < b[1])) b = p;
+    return b;
+  }
+  const cheapest = d => bestOffer(d, DEFAULTS);
+  const costOf = (d, G) => { const b = bestOffer(d, G) || cheapest(d); return b ? b[1] : d.c; };
+
+  const LANG_WORD = { named: "named by the maker", general: "not named (the maker claims most languages)", "": "not checked" };
+  const testPass = v => /^p/i.test(v || "");
+  function langOK(d, G) {
+    const l = d.lg || {};
+    if (G.lang === "named") return l.es === "named" && l.ca === "named";
+    if (G.lang === "tested") return !!l.test && testPass(l.test.es) && testPass(l.test.ca);
+    return true;
+  }
+  function langReason(d, G) {
+    const l = d.lg || {};
+    if (G.lang === "tested") return l.test ? "did not pass Appats' Spanish and Catalan test" : "not tested by Appats yet";
+    if (l.ca !== "named") return "Catalan " + (LANG_WORD[l.ca || ""] || l.ca);
+    return "Spanish " + (LANG_WORD[l.es || ""] || l.es);
+  }
+  // Why a model fails G, as [requirement, reason] pairs; empty means it meets every selected requirement.
+  function fails(d, G) {
+    const r = [];
+    if (!langOK(d, G)) r.push(["lang", langReason(d, G)]);
+    const active = HOST_REQ.filter(k => G[k] === "req");
+    if (active.length && !bestOffer(d, G)) {
+      const pv = priced(d);
+      const missing = active.filter(k => !pv.some(p => MEETS[k](flagsOf(p))));
+      if (missing.length) for (const k of missing) r.push([k, REQ_MISSING[k]]);
+      else r.push(["combo", `no single provider meets ${active.map(k => REQ_LABEL[k]).join(" + ")}`]);
+    }
+    return r;
+  }
+  const passSet = G => DATA.filter(d => !fails(d, G).length).map(d => ({ d, cost: costOf(d, G) }));
+
+  // The trade-off curve: sorted by cost, keep each model that is smarter than every cheaper one.
+  function frontier(S) {
+    const s = S.slice().sort((a, b) => a.cost - b.cost || b.d.ii - a.d.ii);
+    const out = [];
+    let best = -Infinity;
+    for (const p of s) if (p.d.ii > best) { out.push(p); best = p.d.ii; }
+    return out;
+  }
+  const median = a => {
+    if (!a.length) return null;
+    const s = a.slice().sort((x, y) => x - y), m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
+  // What moving from set A to set B does: models removed, best index, and the median price of the same
+  // intelligence along A's curve (for each model on it, the cheapest model in B at least as smart).
+  function compare(A, B) {
+    const ratios = [];
+    for (const a of frontier(A)) {
+      let best = Infinity;
+      for (const b of B) if (b.d.ii >= a.d.ii && b.cost < best) best = b.cost;
+      if (best < Infinity) ratios.push(best / a.cost);
+    }
+    const top = S => (S.length ? Math.max(...S.map(p => p.d.ii)) : null);
+    return {
+      removed: A.length - B.length, n: B.length, topA: top(A), topB: top(B),
+      ratio: median(ratios), hi: ratios.length ? Math.max(...ratios) : null, lo: ratios.length ? Math.min(...ratios) : null
+    };
+  }
+  // The median price change for the same intelligence, plus the extreme when it is much larger.
+  const times = r => (r < 10 ? r.toFixed(1) : String(Math.round(r))) + "×";
+  function ratioText(c) {
+    const r = c.ratio;
+    if (r == null) return "";
+    if (r >= 1.05) return `same intelligence costs ${times(r)}` + (c.hi >= r * 1.25 ? ` (up to ${times(c.hi)})` : "");
+    if (r <= 0.95) return `same intelligence ${pct(1 - r)} cheaper` + (c.lo <= r * 0.8 ? ` (up to ${pct(1 - c.lo)})` : "");
+    if (c.hi >= 1.25) return `same intelligence costs up to ${times(c.hi)}`;
+    return "";
+  }
+  function impactLine(c, preview) {
+    const lead = preview ? "If on: " : "";
+    if (!c.n) return lead + "no model left";
+    const parts = [];
+    if (c.removed > 0) parts.push(`−${c.removed} model${c.removed === 1 ? "" : "s"}`);
+    if (c.topA != null && c.topB < c.topA - 0.05) parts.push(`best index ${c.topA.toFixed(1)} → ${c.topB.toFixed(1)}`);
+    const rt = ratioText(c);
+    if (rt) parts.push(rt);
+    return lead + (parts.length ? parts.join(" · ") : "no change with the other requirements");
+  }
+
+  const FDEF = [
+    { key: "lang", name: "Spanish and Catalan", on: "named", opts: [["any", "Any"], ["named", "Named by the maker"], ["tested", "Passed Appats' test"]],
+      note: "D4 hard filter. OpenAI, Google (Gemini), Qwen and Mistral name Catalan; Anthropic says Claude handles most languages without naming it. Appats' own test decides.",
+      noteInt: "Results go in live_chart\\appats_tests.csv." },
+    { key: "dpa", name: "Data processing agreement", on: "req", opts: [["any", "Any"], ["req", "GDPR Art. 28 DPA"]],
+      note: "D4 hard filter. Counts hosts that publish a DPA or sign one on request (OpenRouter). Hosts with no DPA found drop out, including several of the cheapest." },
+    { key: "eu", name: "Where data is processed", on: "req", opts: [["any", "Anywhere"], ["req", "EU/EEA only"]],
+      note: "Live chats must stay in the EU. Leaves OpenAI EU data residency, OpenRouter EU, EU-based hosts and hosts' EU regions, usually at about list +10%." },
+    { key: "train", name: "Training on Appats' data", on: "req", opts: [["any", "Any"], ["req", "Never trained on"]],
+      note: "Chats must not train anyone's model. Most API hosts do not by default; DeepSeek and a few others do." },
+    { key: "keep", name: "Data kept by the host", on: "req", opts: [["any", "Any"], ["req", "Keeps no data"]],
+      note: "Hosts that keep prompts (often 30 days for abuse checks) drop out. OpenAI, Anthropic and Mistral offer zero retention on approval; this uses each host's default." },
+    { key: "tools", name: "Guardrails and hand-over", on: "req", opts: [["any", "Any"], ["req", "Tool calling"]],
+      note: "Forcing health and nutrition questions to L3 and handing chats to a person (the Fallback Mechanism) needs tool calling. The test set still has to prove escalation works." }
+  ];
+  const isOn = (k, G) => G[k] !== DEFAULTS[k];
+  const withVal = (G, k, v) => { const H = clone(G); H[k] = v; return H; };
+
+  function impactFor(f, M) {
+    const k = f.key;
+    if (isOn(k, F)) return { text: impactLine(compare(passSet(withVal(F, k, DEFAULTS[k])), M), false) };
+    return { text: impactLine(compare(M, passSet(withVal(F, k, f.on))), true), preview: true };
+  }
+
+  function buildFilters() {
+    $("fgrid").innerHTML = FDEF.map(f =>
+      `<div class="fcard" id="fc-${f.key}"><div class="fname">${esc(f.name)}</div>` +
+      `<div class="fctl"><div class="seg" role="group" aria-label="${esc(f.name)}">` +
+      f.opts.map(([v, t]) => `<button type="button" data-k="${f.key}" data-v="${v}" aria-pressed="false">${esc(t)}</button>`).join("") +
+      `</div></div><p class="fnote">${esc(f.note)}${f.noteInt ? `<span class="internal"> ${esc(f.noteInt)}</span>` : ""}</p><p class="impact" id="fi-${f.key}"></p></div>`
+    ).join("");
+    $("fgrid").addEventListener("click", e => {
+      const b = e.target.closest("button[data-k]");
+      if (!b) return;
+      F[b.dataset.k] = b.dataset.v;
+      update();
+    });
+    $("reset").addEventListener("click", () => { F = clone(DEFAULTS); update(); });
+    $("all-req").addEventListener("click", () => { F = clone(ALL); update(); });
+  }
+  function exportText(M) {
+    const on = [];
+    if (F.lang === "named") on.push("Spanish and Catalan named by the maker");
+    if (F.lang === "tested") on.push("passed Appats' Spanish and Catalan test");
+    for (const k of HOST_REQ) if (F[k] === "req") on.push({ dpa: "a GDPR Art. 28 DPA", eu: "processing in the EU/EEA", train: "never trained on", keep: "keeps no data", tools: "tool calling" }[k]);
+    return on.length
+      ? `Requirements: ${on.join("; ")}. ${M.length} of ${DATA.length} models meet them (blue), each at its cheapest qualifying provider; grey dots are the other models at their cheapest provider.`
+      : `No requirements selected: all ${DATA.length} models at their cheapest provider.`;
+  }
+
+  // ---------- state ----------
+  const state = { M: [], match: new Set(), front: [], baseFront: [], sameCurve: true };
+  // ?model=<name> opens the page on one model's details.
+  let selected = DATA.find(d => d.n === params.get("model")) || null;
+
+  function update() {
+    for (const b of document.querySelectorAll(".seg button")) b.setAttribute("aria-pressed", String(F[b.dataset.k] === b.dataset.v));
+    const M = passSet(F);
+    state.M = M;
+    state.match = new Set(M.map(p => p.d));
+    state.front = frontier(M);
+    state.baseFront = frontier(DATA.map(d => ({ d, cost: costOf(d, DEFAULTS) })));
+    state.sameCurve = state.baseFront.length === state.front.length &&
+      state.baseFront.every((p, i) => p.d === state.front[i].d && Math.abs(p.cost - state.front[i].cost) < 1e-12);
+    for (const f of FDEF) {
+      const imp = impactFor(f, M), el = $("fi-" + f.key);
+      el.textContent = imp.text;
+      el.classList.toggle("preview", !!imp.preview);
+      $("fc-" + f.key).classList.toggle("on", isOn(f.key, F));
+    }
+    const active = FDEF.filter(f => isOn(f.key, F)).length;
+    $("fcount").textContent = active
+      ? `${M.length} of ${DATA.length} models meet the ${active} selected requirement${active > 1 ? "s" : ""}`
+      : `None selected: all ${DATA.length} models, each at its cheapest provider`;
+    $("reset").hidden = !active;
+    $("all-req").hidden = FDEF.every(f => F[f.key] === ALL[f.key]);
+    $("xfilter").textContent = exportText(M);
+    render();
+    buildTable();
+  }
+
+  // ---------- static text ----------
+  const makers = new Set(DATA.map(d => d.cr)).size;
+  $("sub").textContent = `${DATA.length} models from ${makers} makers, priced at ${PROVIDERS.length} API providers · data refreshed ${fmtStamp(META.asOf)}${PUBLIC ? " · updates every morning" : ""}`;
+  const est = META.est;
+  const zero = (META.zero || []).join(", ");
+  const dpaKnown = PROVIDERS.filter(p => p[4] === "yes" || p[4] === "request").length;
+  $("notes").innerHTML = [
+    `<p><b>How to read it:</b> each dot is a model at one reasoning setting. Blue dots meet the selected requirements and sit at the cheapest provider that meets all of them; grey dots do not, and sit at their cheapest provider. The solid staircase is the trade-off curve: the smartest qualifying model at each price. The dashed staircase is the same curve without requirements, so the gap between the two is what the requirements cost.<span class="live-only"> Under each requirement: the models it removes, the best Intelligence Index left, and the median change in price for the same intelligence.</span></p>`,
+    `<p><b>Where the requirements come from:</b> the D4 hard filters (Spanish and Catalan, DPA, Guardrails) and the conditions for live-chat endpoints (EU processing, no training, no data kept). DPA status was researched per host on 23 Sep 2026: ${dpaKnown} hosts have one; hosts marked "not found" or "not checked" count as having none<span class="live-only"> (sources in the provider table below<span class="internal">; kept in live_chart\\hosts.csv</span>)</span>. Training and retention are each host's default policy as published by OpenRouter. EU/EEA covers OpenAI EU data residency, OpenRouter EU in-region routing, hosts' EU regions and EU-only hosts. Tool calling comes from Artificial Analysis and OpenRouter endpoint data. Spanish and Catalan come from the makers' documentation<span class="live-only internal"> (live_chart\\languages.csv)</span> and Appats' own test results<span class="live-only internal"> (live_chart\\appats_tests.csv)</span>. Not covered: environmental footprint (no per-model data yet) and data export and deletion (check each DPA).</p>`,
+    `<p><b>Cost per task:</b> what Artificial Analysis paid to run one Intelligence Index task, reasoning included. It ranks models; it does not budget chats, which are much shorter. OpenRouter's Business plan (needed for its EU routing and DPA) adds an 8% fee that is not included.</p>`,
+    `<p><b>Providers:</b> ${PROVIDERS.length} hosts. Artificial Analysis measures cost per task at most hosts it lists. For the others, the cost is estimated as reference cost × the host's token price ÷ the reference price. ` +
+      (est ? `Where Artificial Analysis did measure (${est.n} hosts), the measured cost was within 25% of this estimate for ${pct(est.within)} of them, and the middle 80% ran from ${est.p10}× to ${est.p90}× the estimate, so treat estimates as a guide. ` : "") +
+      `Quantised endpoints are included, and Cheaper Inference is a reseller.</p>`,
+    `<p>Not shown: models without a measured cost${zero ? `, models listed at $0 (${esc(zero)})` : ""}, and superseded models released more than 180 days ago. ` +
+      `Sources: <a href="https://artificialanalysis.ai/leaderboards/models" target="_blank" rel="noopener">Artificial Analysis</a> models and API providers leaderboards, ` +
+      `<a href="https://openrouter.ai/models" target="_blank" rel="noopener">OpenRouter</a> models, EU list and provider data policies, <a href="https://www.cheaperinference.com/markets" target="_blank" rel="noopener">Cheaper Inference</a> markets, and each host's DPA page.</p>`
+  ].join("");
+
+  // ---------- chart ----------
+  const svg = $("chart"), wrap = $("wrap"), tip = $("tip");
+  const measureCtx = document.createElement("canvas").getContext("2d");
+  let pts = [], order = [], focusIdx = -1, hoverRing = null;
+
+  // One cost axis for every requirement setting, so dots move rather than the axis.
+  const NICE = [];
+  for (let e = -4; e <= 3; e++) for (const k of [1, 2, 5]) NICE.push(+(k * 10 ** e).toPrecision(1));
+  const allCosts = [];
+  for (const d of DATA) { allCosts.push(d.c); for (const p of priced(d)) allCosts.push(p[1]); }
+  const LO = Math.max(1e-4, ...NICE.filter(v => v <= Math.min(...allCosts) * 0.92));
+  const HI = Math.min(5000, ...NICE.filter(v => v >= Math.max(...allCosts) * 1.08));
+  const MAX_II = Math.max(...DATA.map(d => d.ii));
+  const Y1 = Math.max(60, Math.ceil(MAX_II / 10) * 10);
+  const axisFmt = v => (v >= 1 ? `$${v}` : v >= 0.1 ? `$${v.toFixed(2)}` : `$${v}`);
+
+  function textWidth(t) {
+    measureCtx.font = "600 12.5px " + getComputedStyle(document.body).fontFamily;
+    return measureCtx.measureText(t).width;
+  }
+  const hit = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  const dot = (cx, cy, r, cls) => `<circle class="dot ${cls}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}"/>`;
+  const ring = (cx, cy, r, cls, id) => `<circle class="ring ${cls}"${id ? ` id="${id}"` : ""} cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}"/>`;
+
+  function legendHTML() {
+    const nIn = state.M.length, nOut = DATA.length - nIn;
+    let h = `<span><i class="key in"></i>${nOut ? `Meets the requirements (${nIn})` : `All models (${nIn})`}</span>`;
+    if (nOut) h += `<span><i class="key out"></i>Does not (${nOut})</span>`;
+    if (state.front.length) h += `<span><i class="key curve"></i>Trade-off curve: the smartest ${nOut ? "qualifying model" : "model"} at each price</span>`;
+    if (!state.sameCurve) h += `<span><i class="key curve-base"></i>Same curve without requirements</span>`;
+    if (selected && !EXPORT) h += `<span><i class="key-line"></i>Providers of ${esc(short(selected.n))}</span>`;
+    return h;
+  }
+
+  function render() {
+    $("legend").innerHTML = legendHTML();
+    const W = EXPORT ? 852 : Math.max(320, Math.floor(wrap.clientWidth));
+    const narrow = W < 620;
+    const H = EXPORT ? 540 : Math.round(Math.min(640, Math.max(360, W * 0.62)));
+    const m = { t: 16, r: 14, b: 46, l: narrow ? 42 : 54 };
+    const pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const L0 = Math.log10(LO), L1 = Math.log10(HI);
+    const x = v => m.l + (Math.log10(Math.min(Math.max(v, LO), HI)) - L0) / (L1 - L0) * pw;
+    const y = v => m.t + (1 - v / Y1) * ph;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+
+    let s = "";
+    for (let v = 10; v <= Y1; v += 10) s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/>`;
+    for (let e = Math.ceil(L0); e <= Math.floor(L1); e++) s += `<line class="grid" x1="${x(10 ** e)}" x2="${x(10 ** e)}" y1="${m.t}" y2="${m.t + ph}"/>`;
+    s += `<line class="baseline" x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}"/>`;
+    const lead = W >= 860 ? [1, 2, 5] : W >= 560 ? [1, 5] : [1];
+    for (const v of NICE) {
+      if (v < LO || v > HI || !lead.includes(+String(v).replace(/[0.]/g, "")[0])) continue;
+      s += `<text class="tick" x="${x(v)}" y="${m.t + ph + 18}" text-anchor="middle">${axisFmt(v)}</text>`;
+    }
+    for (let v = 0; v <= Y1; v += 10) s += `<text class="tick" x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+    s += `<text class="axis-title" x="${m.l + pw / 2}" y="${H - 6}" text-anchor="middle">Cost per Intelligence Index task (USD, log scale)</text>`;
+    s += `<text class="axis-title" transform="translate(13 ${m.t + ph / 2}) rotate(-90)" text-anchor="middle">Intelligence Index</text>`;
+
+    // Staircases: for any budget, the best index available at or below it.
+    const stairs = fr => {
+      if (!fr.length) return "";
+      let p = `M${x(fr[0].cost).toFixed(1)},${y(fr[0].d.ii).toFixed(1)}`;
+      for (let i = 1; i < fr.length; i++) p += `H${x(fr[i].cost).toFixed(1)}V${y(fr[i].d.ii).toFixed(1)}`;
+      return p + `H${(W - m.r).toFixed(1)}`;
+    };
+    const segs = [];
+    const addSegs = (fr, w) => {
+      for (let i = 0; i < fr.length; i++) {
+        const x0 = x(fr[i].cost), yy = y(fr[i].d.ii), x1 = i + 1 < fr.length ? x(fr[i + 1].cost) : W - m.r;
+        segs.push({ x0, x1, y0: yy - 2, y1: yy + 2, w });
+        if (i + 1 < fr.length) segs.push({ x0: x1 - 2, x1: x1 + 2, y0: y(fr[i + 1].d.ii), y1: yy, w });
+      }
+    };
+    if (!state.sameCurve) { s += `<path class="curve-base" d="${stairs(state.baseFront)}"/>`; addSegs(state.baseFront, 3); }
+
+    pts = [];
+    for (const d of DATA) {
+      if (state.match.has(d)) continue;
+      const c = costOf(d, F), px = x(c), py = y(d.ii);
+      s += dot(px, py, 3.5, "out");
+      pts.push({ x: px, y: py, d, cost: c });
+    }
+    if (state.front.length) { s += `<path class="curve" d="${stairs(state.front)}"/>`; addSegs(state.front, 6); }
+    for (const p of state.M) {
+      const px = x(p.cost), py = y(p.d.ii);
+      s += dot(px, py, 4.5, "in");
+      pts.push({ x: px, y: py, d: p.d, cost: p.cost });
+    }
+
+    // The model in the panel: every priced provider as a tick on its row.
+    if (selected && !EXPORT) {
+      const c0 = costOf(selected, F), yy = y(selected.ii);
+      const pv = priced(selected);
+      if (pv.length) {
+        const lo = Math.min(c0, ...pv.map(p => p[1])), hi = Math.max(c0, ...pv.map(p => p[1]));
+        s += `<line class="strip" x1="${x(lo).toFixed(1)}" x2="${x(hi).toFixed(1)}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}"/>`;
+        for (const p of pv) s += `<line class="ptick" x1="${x(p[1]).toFixed(1)}" x2="${x(p[1]).toFixed(1)}" y1="${(yy - 6).toFixed(1)}" y2="${(yy + 6).toFixed(1)}"/>`;
+      }
+      s += ring(x(c0), yy, 12, "sel");
+    }
+
+    // Names for the models on the curve, placed greedily; a name that cannot find free space is left out.
+    if (!narrow) {
+      const dotBoxes = pts.map(p => ({ x0: p.x - 6, x1: p.x + 6, y0: p.y - 6, y1: p.y + 6, d: p.d }));
+      const placed = [];
+      const bounds = { x0: m.l + 2, x1: W - m.r - 2, y0: m.t + 1, y1: m.t + ph - 4 };
+      const DX = [-10, 10, -30, 30, -60, 60];
+      const DY = [-12, 4, -26, 18, -40];
+      for (const p of state.front.slice().sort((a, b) => b.d.ii - a.d.ii).slice(0, 14)) {
+        const px = x(p.cost), py = y(p.d.ii), t = short(p.d.n), w = textWidth(t);
+        let best = null;
+        for (const dy of DY) for (const dx of DX) {
+          const anchor = dx < 0 ? "end" : "start";
+          const lx = px + dx, ly = py + dy;
+          const box = { x0: anchor === "end" ? lx - w : lx, x1: anchor === "end" ? lx : lx + w, y0: ly - 11, y1: ly + 3 };
+          if (box.x0 < bounds.x0 || box.x1 > bounds.x1 || box.y0 < bounds.y0 || box.y1 > bounds.y1) continue;
+          let score = Math.hypot(dx, dy) / 30;
+          for (const b of dotBoxes) if (b.d !== p.d && hit(box, b)) score += 3;
+          for (const b of segs) if (hit(box, b)) score += b.w;
+          for (const b of placed) if (hit(box, b)) score += 1000;
+          if (!best || score < best.score) best = { score, dx, dy, anchor, lx, ly, box };
+        }
+        if (!best || best.score >= 1000) continue;
+        placed.push(best.box);
+        if (Math.abs(best.dx) > 12 || best.dy > 8 || best.dy < -16) {
+          const sx = best.anchor === "end" ? best.box.x1 + 2 : best.box.x0 - 2;
+          const sy = Math.min(Math.max(py, best.box.y0 + 3), best.box.y1 - 3);
+          const a = Math.atan2(py - sy, px - sx);
+          s += `<line class="leader" x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${(px - Math.cos(a) * 7).toFixed(1)}" y2="${(py - Math.sin(a) * 7).toFixed(1)}"/>`;
+        }
+        s += `<text class="lbl" x="${best.lx.toFixed(1)}" y="${best.ly.toFixed(1)}" text-anchor="${best.anchor}">${esc(t)}</text>`;
+      }
+    }
+
+    s += ring(-99, -99, 8, "hover", "hring");
+    s += `<rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/>`;
+    const keep = [...svg.querySelectorAll("title, desc")];
+    svg.innerHTML = s;
+    keep.reverse().forEach(n => svg.prepend(n));
+    hoverRing = $("hring");
+    order = pts.map((p, i) => i).sort((a, b) => pts[a].x - pts[b].x || pts[a].y - pts[b].y);
+    if (focusIdx >= order.length) focusIdx = -1;
+    hideTip();
+    renderPanel();
+  }
+
+  // ---------- tooltip, selection, panel ----------
+  const reasonText = w => w.map(r => esc(r[1])).join("; ");
+  function whereText(d) {
+    const b = state.match.has(d) ? bestOffer(d, F) : cheapest(d);
+    return b ? `at ${esc(b[0])}` : "reference price";
+  }
+  function langLine(d) {
+    const l = d.lg || {};
+    const t = l.test ? `Appats test ${testPass(l.test.es) && testPass(l.test.ca) ? "passed" : "not passed"}${l.test.date ? ` (${fmtDate(l.test.date)})` : ""}` : "not tested by Appats yet";
+    return `Catalan ${LANG_WORD[l.ca || ""] || esc(l.ca)} · ${t}`;
+  }
+  function tipHTML(p) {
+    const d = p.d, why = fails(d, F), n = priced(d).length;
+    return [
+      `<b>${esc(d.n)}</b> <span class="m">${esc(d.cr)}</span>`,
+      `Index <b>${d.ii.toFixed(1)}</b> · <b>${fmt(p.cost)}</b> per task <span class="m">(${whereText(d)})</span>`,
+      `<span class="m">${langLine(d)}</span>`,
+      `<span class="m">${why.length ? `Does not meet: ${reasonText(why)}` : "Meets the selected requirements"}</span>`,
+      `<span class="m">Click for ${n ? `all ${n} providers` : "details"}</span>`
+    ].join("<br>");
+  }
+  function showTip(p) {
+    const box = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+    const sx = box.width / vb.width, sy = box.height / vb.height;
+    hoverRing.setAttribute("cx", p.x); hoverRing.setAttribute("cy", p.y);
+    tip.innerHTML = tipHTML(p);
+    tip.hidden = false;
+    const tw = tip.offsetWidth, th = tip.offsetHeight, ww = wrap.clientWidth;
+    let left = p.x * sx + 14, topPx = p.y * sy - th - 10;
+    if (left + tw > ww) left = p.x * sx - tw - 14;
+    if (left < 0) left = 0;
+    if (topPx < 0) topPx = p.y * sy + 14;
+    tip.style.left = left + "px";
+    tip.style.top = topPx + "px";
+  }
+  function hideTip() {
+    tip.hidden = true;
+    if (hoverRing) { hoverRing.setAttribute("cx", -99); hoverRing.setAttribute("cy", -99); }
+  }
+  function nearest(e) {
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const q = pt.matrixTransform(svg.getScreenCTM().inverse());
+    let best = null, bd = 24 * 24;
+    for (const p of pts) { const dd = (p.x - q.x) ** 2 + (p.y - q.y) ** 2; if (dd < bd) { bd = dd; best = p; } }
+    return best;
+  }
+  function select(d, scroll) {
+    selected = d;
+    render();
+    if (scroll && window.matchMedia("(max-width: 1060px)").matches) $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  const byName = n => DATA.find(e => e.n === n);
+
+  // One chip per requirement: met, not met, or unknown.
+  function chips(f) {
+    const chip = (state, label, title) => `<span class="chip ${state}" title="${esc(title)}">${label}</span>`;
+    const tri = (v, okWhen) => (v == null ? "unk" : v === okWhen ? "ok" : "no");
+    const dpaState = f.dpa === "yes" || f.dpa === "request" ? "ok" : f.dpa === "no" || f.dpa === "not found" ? "no" : "unk";
+    const dpaTitle = { yes: "DPA published", request: "DPA signed on request", no: "no DPA", "not found": "no public DPA found" }[f.dpa] || "DPA not checked";
+    return `<span class="chips">` +
+      chip(dpaState, f.dpa === "request" ? "DPA on request" : "DPA", dpaTitle) +
+      chip(f.eu === 1 ? "ok" : "no", "EU/EEA", f.eu === 1 ? "processed in the EU/EEA" : "not shown as EU processing") +
+      chip(tri(f.tr, 0), "no training", f.tr == null ? "training policy unknown" : f.tr === 0 ? "does not train on prompts" : "may train on prompts") +
+      chip(tri(f.rt, 0), "keeps no data", f.rt == null ? "retention unknown" : f.rt === 0 ? "keeps no prompts" : "keeps prompts") +
+      chip(tri(f.tl, 1), "tool calling", f.tl == null ? "tool calling unknown" : f.tl === 1 ? "supports tool calling" : "no tool calling") +
+      `</span>`;
+  }
+
+  function renderPanel() {
+    if (EXPORT) return;
+    const panel = $("panel");
+    if (!selected) {
+      const fr = state.front;
+      panel.innerHTML = fr.length
+        ? `<h2>Trade-off curve</h2><p class="muted">The ${fr.length} models on the curve, cheapest first, each at its cheapest ${state.M.length < DATA.length ? "qualifying " : ""}provider. Each is smarter than every cheaper ${state.M.length < DATA.length ? "qualifying " : ""}model. Click one for all its providers and what each one meets.</p>` +
+          `<ol class="curve-list">${fr.map(p => { const b = bestOffer(p.d, F); return `<li><button type="button" data-n="${esc(p.d.n)}"><span class="cl-name">${esc(short(p.d.n))}</span><span class="cl-meta">index ${p.d.ii.toFixed(1)} · ${fmt(p.cost)} per task${b ? ` · ${esc(b[0])}` : ""}</span></button></li>`; }).join("")}</ol>`
+        : `<h2>No model meets these requirements</h2><p class="muted">Each requirement card shows how many models it removes.</p>`;
+      panel.querySelectorAll(".curve-list button").forEach(b => b.addEventListener("click", () => { const d = byName(b.dataset.n); if (d) select(d, true); }));
+      return;
+    }
+    const d = selected, why = fails(d, F), cur = costOf(d, F);
+    const bq = why.length ? null : bestOffer(d, F), bc = cheapest(d);
+    let status;
+    if (why.length) status = `<p class="status">Does not meet: ${reasonText(why)}.</p>`;
+    else if (state.front.some(p => p.d === d)) status = `<p class="status st-in">Meets the selected requirements${bq ? ` at ${esc(bq[0])}` : ""}, and is on the trade-off curve: every cheaper qualifying model scores lower.</p>`;
+    else {
+      const better = state.M.filter(p => p.d !== d && p.d.ii >= d.ii && p.cost <= cur).sort((a, b) => a.cost - b.cost)[0];
+      status = `<p class="status st-in">Meets the selected requirements${bq ? ` at ${esc(bq[0])}` : ""}.${better ? ` ${esc(short(better.d.n))} scores at least as high (${better.d.ii.toFixed(1)}) for ${fmt(better.cost)} per task.` : ""}</p>`;
+    }
+    const l = d.lg || {};
+    const langs = `<p class="lang">Spanish: ${LANG_WORD[l.es || ""] || esc(l.es)} · Catalan: ${LANG_WORD[l.ca || ""] || esc(l.ca)}</p>` +
+      (l.note ? `<p class="muted">${esc(l.note)}${l.src ? ` ${link(l.src, "Source")}` : ""}</p>` : "") +
+      `<p class="muted">${l.test ? `Appats test: Spanish ${esc(l.test.es || "n/a")}, Catalan ${esc(l.test.ca || "n/a")}${l.test.date ? `, ${fmtDate(l.test.date)}` : ""}${l.test.note ? ` (${esc(l.test.note)})` : ""}` : "Not tested by Appats yet."}</p>`;
+    const stats = [["Intelligence Index", d.ii.toFixed(1)]];
+    if (bq) stats.push(["Cheapest provider that qualifies", `${fmt(bq[1])} · ${esc(bq[0])}`]);
+    if (bc) stats.push(["Cheapest provider overall", `${fmt(bc[1])} · ${esc(bc[0])}`]);
+    stats.push(["Reference cost per task", fmt(d.c)]);
+    if (d.refIn != null) stats.push(["Reference price per 1M tokens", `${fmtTok(d.refIn)} in / ${fmtTok(d.refOut)} out`]);
+    const pv = d.pv || [];
+    const pr = priced(d);
+    const max = pr.length ? Math.max(...pr.map(p => p[1])) : 1;
+    const anyReq = HOST_REQ.some(k => F[k] === "req");
+    const rows = pv.map(p => {
+      const detail = [SRC[p[2]] || p[2], p[3] ? esc(p[3]) : "", p[4] != null ? `${fmtTok(p[4])} / ${fmtTok(p[5])} per 1M` : ""].filter(Boolean).join(" · ");
+      const bar = p[1] != null ? `<span class="bar" style="width:${Math.max(2, p[1] / max * 100).toFixed(1)}%"></span>` : "";
+      const cls = anyReq ? (offerOK(p, F) ? "meets" : "fails") : "";
+      return `<tr class="${cls}"><td><span class="pname">${esc(p[0])}</span><span class="src">${detail}</span>${chips(flagsOf(p))}${bar}</td><td class="cost">${p[1] != null ? fmt(p[1]) : "n/a"}</td></tr>`;
+    }).join("");
+    const links = [`<a href="https://artificialanalysis.ai/models/${encodeURIComponent(d.s || "")}" target="_blank" rel="noopener">Artificial Analysis</a>`];
+    if (d.or) links.push(`<a href="https://openrouter.ai/${encodeURI(d.or)}" target="_blank" rel="noopener">OpenRouter</a>`);
+    panel.innerHTML =
+      `<p class="back"><button type="button" class="btn" id="back">← Trade-off curve</button></p>` +
+      `<h2>${esc(d.n)}</h2>` +
+      `<p class="meta">${esc(d.cr)} · ${d.ow ? "open weights" : "proprietary"} · released ${fmtDate(d.rd)}${d.dep ? " · superseded" : ""}</p>` +
+      status +
+      `<dl class="stats">${stats.map(r => `<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("")}</dl>` +
+      `<h3>Spanish and Catalan</h3>${langs}` +
+      `<h3>All providers (${pv.length})</h3>` +
+      (pv.length ? `<p class="chip-key">✓ meets · crossed out: does not · ?: unknown.${anyReq ? " Rows marked green meet every selected requirement." : ""}</p><table class="plist"><tbody>${rows}</tbody></table>` : `<p class="muted">No provider prices found.</p>`) +
+      `<p class="links">Open on ${links.join(" · ")}</p>`;
+    $("back").addEventListener("click", () => select(null, false));
+  }
+
+  svg.addEventListener("mousemove", e => { const p = nearest(e); svg.style.cursor = p ? "pointer" : "default"; if (p) showTip(p); else hideTip(); });
+  svg.addEventListener("mouseleave", hideTip);
+  svg.addEventListener("click", e => { const p = nearest(e); if (p) select(p.d, true); });
+  svg.addEventListener("focus", () => { if (focusIdx < 0) focusIdx = 0; if (pts.length) showTip(pts[order[focusIdx]]); });
+  svg.addEventListener("blur", hideTip);
+  svg.addEventListener("keydown", e => {
+    if (!order.length) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") focusIdx = (focusIdx + 1) % order.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") focusIdx = (focusIdx - 1 + order.length) % order.length;
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (focusIdx >= 0) select(pts[order[focusIdx]].d, true); return; }
+    else if (e.key === "Escape") { if (selected) select(null, false); else hideTip(); return; }
+    else return;
+    e.preventDefault();
+    showTip(pts[order[focusIdx]]);
+  });
+
+  // ---------- tables ----------
+  const qualifying = d => priced(d).filter(p => offerOK(p, F)).length;
+  const COLS = [
+    { h: "Model", v: d => d.n, cell: d => `<span class="sw" style="background:var(${state.match.has(d) ? "--match" : "--other"})"></span>${esc(d.n)}` },
+    { h: "Maker", v: d => d.cr, cell: d => esc(d.cr) },
+    { h: "Index", v: d => d.ii, cell: d => d.ii.toFixed(1), num: true },
+    { h: "Cost per task", v: d => (state.match.has(d) ? costOf(d, F) : Infinity), cell: d => (state.match.has(d) ? fmt(costOf(d, F)) : "n/a"), num: true },
+    { h: "At", v: d => { const b = state.match.has(d) ? bestOffer(d, F) : null; return b ? b[0] : "~"; }, cell: d => { const b = state.match.has(d) ? bestOffer(d, F) : null; return b ? esc(b[0]) : ""; } },
+    { h: "Cheapest overall", v: d => { const b = cheapest(d); return b ? b[1] : d.c; }, cell: d => { const b = cheapest(d); return b ? `${esc(b[0])} ${fmt(b[1])}` : fmt(d.c); }, num: true },
+    { h: "Catalan", v: d => ((d.lg || {}).ca || "~"), cell: d => { const l = d.lg || {}; return l.ca === "named" ? "named" : l.ca === "general" ? "not named" : "not checked"; } },
+    { h: "Appats test", v: d => ((d.lg || {}).test ? 0 : 1), cell: d => { const t = (d.lg || {}).test; return t ? `ES ${esc(t.es || "n/a")}, CA ${esc(t.ca || "n/a")}` : "not yet"; } },
+    { h: "Qualifying providers", v: d => qualifying(d), cell: d => `${qualifying(d)} of ${priced(d).length}`, num: true },
+    { h: "Requirements not met", v: d => fails(d, F).length, cell: d => { const w = fails(d, F); return w.length ? reasonText(w) : "none"; }, wrap: true }
+  ];
+  let sortCol = 2, sortDir = -1;
+  function buildTable() {
+    if (EXPORT) return;
+    const only = $("only-match").checked;
+    const rows = DATA.filter(d => !only || state.match.has(d)).sort((a, b) => {
+      const va = COLS[sortCol].v(a), vb = COLS[sortCol].v(b);
+      return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
+    });
+    const head = COLS.map((c, i) => `<th class="${c.num ? "num" : ""}" aria-sort="${i === sortCol ? (sortDir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-i="${i}">${c.h}${i === sortCol ? (sortDir > 0 ? " ▲" : " ▼") : ""}</button></th>`).join("");
+    const body = rows.map(d => `<tr class="pick-row${state.match.has(d) ? "" : " out"}" tabindex="0" data-n="${esc(d.n)}">${COLS.map(c => `<td class="${c.num ? "num" : c.wrap ? "wrap" : ""}">${c.cell(d)}</td>`).join("")}</tr>`).join("");
+    const tbl = $("tbl");
+    tbl.innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    tbl.querySelectorAll("th button").forEach(b => b.addEventListener("click", () => {
+      const i = +b.dataset.i;
+      if (i === sortCol) sortDir = -sortDir; else { sortCol = i; sortDir = COLS[i].num ? -1 : 1; }
+      buildTable();
+    }));
+    const pickRow = tr => { const d = byName(tr.dataset.n); if (d) { select(d, false); $("panel").scrollIntoView({ behavior: "smooth", block: "nearest" }); } };
+    tbl.querySelectorAll("tbody tr").forEach(tr => {
+      tr.addEventListener("click", () => pickRow(tr));
+      tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickRow(tr); } });
+    });
+  }
+  $("only-match").addEventListener("change", buildTable);
+  function buildProviders() {
+    const srcText = s => s.split("+").map(k => SRC_SHORT[k] || k).join(", ");
+    const dpaText = { yes: "published", request: "on request", no: "none", "not found": "none found" };
+    const yn = (v, yes, no) => (v == null ? "unknown" : v ? yes : no);
+    $("prov-summary").textContent = `All providers in the pool, with what each one meets (${PROVIDERS.length})`;
+    $("ptbl").innerHTML =
+      `<thead><tr><th>Provider</th><th class="num">Models</th><th>DPA</th><th>Trains on prompts</th><th>Keeps prompts</th><th>HQ</th><th>Data centres</th><th>EU/EEA offering</th><th>Price source</th><th>Note</th></tr></thead><tbody>` +
+      PROVIDERS.map(p => `<tr><td>${esc(p[0])}</td><td class="num">${p[1]}</td>` +
+        `<td>${p[5] ? link(p[5], dpaText[p[4]] || "not checked") : esc(dpaText[p[4]] || "not checked")}</td>` +
+        `<td>${yn(p[7], "yes", "no")}</td><td>${p[8] == null ? "unknown" : p[8] ? `yes${p[9] ? ` (${p[9]} days)` : ""}` : "no"}</td>` +
+        `<td>${esc(p[10] || "")}</td><td>${esc(p[11] || "")}</td><td>${p[3] ? "yes" : ""}</td><td>${esc(srcText(p[2]))}</td><td class="wrap">${esc(p[6] || "")}</td></tr>`).join("") +
+      `</tbody>`;
+  }
+
+  buildFilters();
+  buildProviders();
+  update();
+  if (!EXPORT) {
+    let raf = 0, lastW = wrap.clientWidth;
+    new ResizeObserver(() => {
+      if (wrap.clientWidth === lastW) return;
+      lastW = wrap.clientWidth;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(render);
+    }).observe(wrap);
+  }
+  root.dataset.cardHeight = Math.ceil($("card").getBoundingClientRect().height);
+})();
+</script>
+</body>
+</html>

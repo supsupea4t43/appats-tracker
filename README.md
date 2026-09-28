@@ -1,6 +1,6 @@
 # Appats Model Tracker
 
-An interactive chart of AI models' intelligence against cost per task, filtered by Appats' requirements: Spanish and Catalan support, a GDPR Art. 28 DPA, processing in the EU/EEA, no training on Appats' data, no data kept by the host, and tool calling for escalation to a person. The page is `index.html`; its link is under **Settings → Pages**.
+An interactive chart of AI models' intelligence against cost per task, filtered by Appats' requirements: Spanish and Catalan support, a GDPR Art. 28 DPA, processing in the EU/EEA, no training on Appats' data, no data kept by the host, and tool calling for escalation to a person. A Score card ranks the models that meet them by weights you set: Spanish and Catalan, intelligence, cost, environmental footprint and data protection. The page is `index.html`; its link is under **Settings → Pages**.
 
 ## How it stays current
 
@@ -16,4 +16,4 @@ Edit these files here on GitHub (pencil icon, then **Commit changes**); the page
 
 ## Sources
 
-Artificial Analysis (models and API providers leaderboards), OpenRouter (models, EU list and provider data policies), Cheaper Inference (markets) and each host's DPA page. Artificial Analysis data is shown with attribution, as its terms require.
+Artificial Analysis (models and API providers leaderboards, plus one model page for model sizes and output tokens per task), OpenRouter (models, EU list and provider data policies), Cheaper Inference (markets) and each host's DPA page. Artificial Analysis data is shown with attribution, as its terms require.

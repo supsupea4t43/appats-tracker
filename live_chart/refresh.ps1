@@ -4,8 +4,9 @@
 
 .DESCRIPTION
   All sources are public; nothing is published anywhere.
-    Artificial Analysis  models + API providers leaderboards   intelligence, cost per task, and the cost, token price and
-                                                             tool calling of every host it lists
+    Artificial Analysis  models + API providers leaderboards   intelligence, cost per task, output speed, and the cost,
+                                                             token price and tool calling of every host it lists
+                         one model page                       model size and output tokens per task (footprint score)
     OpenRouter           model list, per-model endpoints and    live token prices, EU regions and tool calling per host;
                          provider data policies                 whether each host trains on or keeps prompts
     OpenRouter EU        EU model list + per-model endpoints     which models run in the EU, on which host, at what price
@@ -108,6 +109,12 @@ function Get-RscText([string]$html) {
   $sb.ToString()
 }
 
+# One object from the page data. React writes missing values as "$undefined" (and NaN or infinity as "$NaN",
+# "$Infinity"); they become null so that numbers and yes/no fields are never read from them.
+function ConvertFrom-Rsc([string]$js) {
+  ConvertFrom-Json -InputObject ($js.Replace('"$undefined"', 'null').Replace('"$NaN"', 'null').Replace('"$Infinity"', 'null').Replace('"$-Infinity"', 'null'))
+}
+
 function Read-Config([string]$file) {
   $p = Join-Path $here $file
   if (Test-Path $p) { return , @(Import-Csv -Path $p -Encoding UTF8) }
@@ -137,6 +144,19 @@ function Get-ProvKey([string]$p) {
 function Round3([double]$v) {
   if ($v -eq 0) { return 0 }
   [double]::Parse($v.ToString('G3', $inv), $inv)
+}
+
+# A number, or $null for missing values (the page data writes some as "$undefined").
+function Get-Num($v) {
+  $d = 0.0
+  if ($null -ne $v -and [double]::TryParse([string]$v, [Globalization.NumberStyles]::Float, $inv, [ref]$d)) { $d } else { $null }
+}
+
+function Get-Median($values) {
+  $s = @($values | Sort-Object)
+  if (-not $s.Count) { return $null }
+  $mid = [int][math]::Floor($s.Count / 2)
+  if ($s.Count % 2) { [double]$s[$mid] } else { ([double]$s[$mid - 1] + [double]$s[$mid]) / 2 }
 }
 
 # Live cost per task at another price: the reference cost scaled by the blended (3:1 input:output) price ratio.
@@ -216,12 +236,54 @@ $release = @{}
 foreach ($js in [RscScan]::Objects($rsc, '{"slug":"')) {
   $isMetric = $js.Contains('"modelCreatorName"') -and $js.Contains('"intelligenceIndex"')
   if (-not $isMetric -and -not $js.Contains('"releaseDate"')) { continue }
-  try { $o = ConvertFrom-Json -InputObject $js } catch { continue }
+  try { $o = ConvertFrom-Rsc $js } catch { continue }
   if (-not $o.slug) { continue }
   if ($isMetric) { if (-not $metrics.ContainsKey($o.slug)) { $metrics[$o.slug] = $o } }
   elseif (-not $release.ContainsKey($o.slug)) { $release[$o.slug] = $o.releaseDate }
 }
 if ($metrics.Count -lt 100) { throw "Only $($metrics.Count) models parsed from Artificial Analysis." }
+# Output speed of each model family, for reasoning levels Artificial Analysis has not timed.
+$familySpeed = @{}
+foreach ($x in $metrics.Values) {
+  $v = Get-Num $x.medianOutputTokensPerSecond
+  if (-not ($v -gt 0)) { continue }
+  $fam = [string]$(if ($x.shortName) { $x.shortName } else { $x.name }) -replace '\s*\(.*$', ''
+  if (-not $familySpeed.ContainsKey($fam)) { $familySpeed[$fam] = New-Object System.Collections.ArrayList }
+  [void]$familySpeed[$fam].Add($v)
+}
+
+# --- 1b. Artificial Analysis model details: size and output tokens per task (optional) ----------
+# Every model page carries these for all models; the top model's page is fetched.
+Write-Host 'Artificial Analysis model details...'
+$details = @{}
+$sizeMed = [ordered]@{}
+$sizeN = [ordered]@{}
+$topSlugs = @($metrics.Values | Where-Object { (Get-Num $_.intelligenceIndex) -gt 0 -and -not $_.deprecated } |
+    Sort-Object { Get-Num $_.intelligenceIndex } -Descending | Select-Object -First 3 | ForEach-Object { $_.slug })
+foreach ($slug in $topSlugs) {
+  try { $detRsc = Get-RscText (Get-Page "https://artificialanalysis.ai/models/$slug") } catch { Write-Warning "Model page $slug failed: $($_.Exception.Message)"; continue }
+  foreach ($js in [RscScan]::Objects($detRsc, '{"id":"')) {
+    if (-not $js.Contains('"inferenceParametersActiveBillions"')) { continue }
+    try { $o = ConvertFrom-Rsc $js } catch { continue }
+    if (-not $o.slug) { continue }
+    $tpt = $(if ($o.intelligenceIndexOutputTokensPerTask) { Get-Num $o.intelligenceIndexOutputTokensPerTask.output } else { $null })
+    $prev = $details[[string]$o.slug]
+    if ($prev -and ($null -ne $prev.tpt -or $null -eq $tpt)) { continue }
+    $sc = [string]$o.sizeClass
+    $details[[string]$o.slug] = @{ p = (Get-Num $o.parameters); a = (Get-Num $o.inferenceParametersActiveBillions); sc = $(if ($sc -like '$*') { '' } else { $sc }); tpt = $tpt; rd = [string]$o.releaseDate }
+  }
+  if ($details.Count -ge 100) { break }
+}
+if ($details.Count -lt 100) { Write-Warning "Only $($details.Count) models parsed from the Artificial Analysis model page; the footprint score will lack data." }
+# Sizes the maker does not publish are estimated as the median size of open models in the same size class, released in
+# the last 12 months (all of them when that leaves fewer than 5).
+$yearAgo = (Get-Date).ToUniversalTime().AddDays(-365).ToString('yyyy-MM-dd')
+foreach ($cls in @('tiny', 'small', 'medium', 'large')) {
+  $known = @($details.Values | Where-Object { $_.sc -eq $cls -and $_.p -gt 0 })
+  $recent = @($known | Where-Object { $_.rd -ge $yearAgo })
+  $use = $(if ($recent.Count -ge 5) { $recent } else { $known })
+  if ($use.Count) { $sizeMed[$cls] = Round3 (Get-Median @($use | ForEach-Object { [double]$_.p })); $sizeN[$cls] = $use.Count }
+}
 
 # --- 2. Artificial Analysis: every host it lists, with exact cost per task where measured ------
 Write-Host 'Artificial Analysis API providers...'
@@ -230,14 +292,14 @@ $byModel = @{}
 $seenEndpoint = @{}
 foreach ($js in [RscScan]::Objects($provRsc, '{"id":"')) {
   if (-not ($js.Contains('"hostApiId"') -and $js.Contains('"pricing"'))) { continue }
-  try { $o = ConvertFrom-Json -InputObject $js } catch { continue }
+  try { $o = ConvertFrom-Rsc $js } catch { continue }
   if (-not $o.model.slug -or -not $o.host.name -or $seenEndpoint.ContainsKey($o.id)) { continue }
   $seenEndpoint[$o.id] = $true
   $tags = @([regex]::Matches([string]$o.label, $tagRe) | ForEach-Object { $_.Value.Trim() -replace '[()]', '' })
   $provider = (@([string]$o.host.name) + $tags) -join ' '
   $slug = [string]$o.model.slug
   if (-not $byModel.ContainsKey($slug)) { $byModel[$slug] = New-Object System.Collections.ArrayList }
-  [void]$byModel[$slug].Add(@{ p = $provider; c = $o.pricing.costPerTask; pin = $o.pricing.price1mInputTokens; pout = $o.pricing.price1mOutputTokens; fc = $o.features.functionCalling })
+  [void]$byModel[$slug].Add(@{ p = $provider; c = $o.pricing.costPerTask; pin = $o.pricing.price1mInputTokens; pout = $o.pricing.price1mOutputTokens; fc = $o.features.functionCalling; tps = (Get-Num $o.performance.medianOutputTokensPerSecond) })
 }
 if ($byModel.Count -lt 50) { throw "Only $($byModel.Count) models parsed from the providers leaderboard." }
 
@@ -325,7 +387,7 @@ try {
   $ciRsc = Get-RscText (Get-Page 'https://www.cheaperinference.com/markets')
   foreach ($js in [RscScan]::Objects($ciRsc, '{"id":"')) {
     if (-not $js.Contains('"ourInputPerM"')) { continue }
-    try { $o = ConvertFrom-Json -InputObject $js } catch { continue }
+    try { $o = ConvertFrom-Rsc $js } catch { continue }
     if ($o.type -ne 'text' -or $null -eq $o.ourInputPerM -or $null -eq $o.ourOutputPerM) { continue }
     $k = Get-Key $o.id
     if (-not $ciByKey.ContainsKey($k)) { $ciByKey[$k] = $o }
@@ -385,6 +447,21 @@ foreach ($m in $metrics.Values) {
   if ($m.deprecated) { $row.dep = 1 }
   if ($rd) { $row.rd = $rd }
   if ($refIn -gt 0 -and $refOut -gt 0) { $row.refIn = Round3 $refIn; $row.refOut = Round3 $refOut }
+  # Footprint inputs: output tokens per Index task, output speed (the family's other levels, then its hosts, when the
+  # model itself has not been timed), total and active parameters in billions, and Artificial Analysis' size class.
+  $det = $details[[string]$m.slug]
+  if ($det) {
+    if ($det.tpt -gt 0) { $row.tpt = [int][math]::Round($det.tpt) }
+    if ($det.p -gt 0) { $row.pt = Round3 $det.p }
+    if ($det.a -gt 0) { $row.pa = Round3 $det.a }
+    if ($det.sc) { $row.sc = $det.sc }
+  }
+  $fam = $name -replace '\s*\(.*$', ''
+  $hostSpeeds = @(@($byModel[$m.slug]) | Where-Object { $null -ne $_ -and $_.tps -gt 0 } | ForEach-Object { $_.tps })
+  $ownSpeed = Get-Num $m.medianOutputTokensPerSecond
+  if ($ownSpeed -gt 0) { $row.tps = [math]::Round($ownSpeed, 1) }
+  elseif ($familySpeed.ContainsKey($fam)) { $row.tps = [math]::Round((Get-Median $familySpeed[$fam]), 1); $row.tpsSrc = 'family' }
+  elseif ($hostSpeeds.Count) { $row.tps = [math]::Round((Get-Median $hostSpeeds), 1); $row.tpsSrc = 'hosts' }
   $row.lg = Get-Lang $maker $name
 
   # Every offering of this model. Entry: provider, cost per task, source, note, input and output price per 1M tokens, flags.
@@ -550,6 +627,8 @@ $meta = [ordered]@{
   est       = $estCheck
   zero      = @($zero | Sort-Object)
   providers = $provArr
+  sizeMed   = $sizeMed
+  sizeN     = $sizeN
 }
 $dataJson = ConvertTo-Json -InputObject $rows -Depth 8 -Compress
 $metaJson = ConvertTo-Json -InputObject $meta -Depth 8 -Compress
@@ -564,6 +643,10 @@ $lines = @(
   ('DPA (hosts.csv): published by {0} hosts, on request at {1}, none at {2}, not found at {3}, not checked at {4}.' -f (& $dpaCount 'yes'), (& $dpaCount 'request'), (& $dpaCount 'no'), (& $dpaCount 'not found'), (& $dpaCount ''))
 )
 if ($estCheck) { $lines += 'Estimate check: at {0} hosts Artificial Analysis measured, the estimate from token prices was within 25% for {1}% of them (middle 80%: {2}x to {3}x).' -f $estCheck.n, [math]::Round($estCheck.within * 100), $estCheck.p10.ToString($inv), $estCheck.p90.ToString($inv) }
+$lines += ('Footprint inputs: output tokens per task for {0} of {1} models; output speed for {2} ({3} taken from other reasoning levels or hosts); size published for {4}, estimated from the size class for {5} ({6}).' -f
+  @($rows | Where-Object { $_.tpt }).Count, $rows.Count, @($rows | Where-Object { $_.tps }).Count, @($rows | Where-Object { $_.tpsSrc }).Count,
+  @($rows | Where-Object { $_.pt }).Count, @($rows | Where-Object { -not $_.pt -and $_.sc -and $sizeMed.Contains($_.sc) }).Count,
+  (($sizeMed.Keys | ForEach-Object { '{0} {1}B' -f $_, ([double]$sizeMed[$_]).ToString($inv) }) -join ', '))
 $lines += (Get-CurveLine 'Trade-off curve, every model at its cheapest host' $anyItems)
 $lines += (Get-CurveLine 'Trade-off curve, all Appats requirements (ES/CA named, DPA, EU, no training, no retention, tool calling)' $reqItems)
 [IO.File]::WriteAllText((Join-Path $here 'summary.txt'), ($lines -join "`r`n") + "`r`n", $utf8)

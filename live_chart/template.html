@@ -24,6 +24,12 @@
     --good: #006300;
     --tip-bg: #ffffff;
     --tip-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+    /* score factors: categorical slots 1-5, validated as adjacent stack segments on the panel tile */
+    --f1: #2a78d6;
+    --f2: #eb6834;
+    --f3: #1baf7a;
+    --f4: #eda100;
+    --f5: #e87ba4;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -44,6 +50,11 @@
       --good: #0ca30c;
       --tip-bg: #242423;
       --tip-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+      --f1: #3987e5;
+      --f2: #d95926;
+      --f3: #199e70;
+      --f4: #c98500;
+      --f5: #d55181;
     }
   }
   :root[data-theme="dark"] {
@@ -64,6 +75,11 @@
     --good: #0ca30c;
     --tip-bg: #242423;
     --tip-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    --f1: #3987e5;
+    --f2: #d95926;
+    --f3: #199e70;
+    --f4: #c98500;
+    --f5: #d55181;
   }
 
   * { box-sizing: border-box; }
@@ -100,6 +116,34 @@
   .impact { font-size: 12px; line-height: 1.4; margin: 5px 0 0; font-variant-numeric: tabular-nums; }
   .impact.preview { color: var(--muted); }
   .xfilter { display: none; font-size: 13.5px; color: var(--ink-2); line-height: 1.45; margin: 0 0 10px; }
+
+  /* Score card: fills the free half of the second row when four cards fit per row, otherwise a row of its own. */
+  .filters { container: filters / inline-size; }
+  .scard { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; }
+  @container filters (min-width: 1190px) { .scard { grid-column: span 2; } }
+  .shead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  .wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 2px 24px; }
+  .wrow { display: grid; grid-template-columns: minmax(0, 1fr) auto 5.4em; align-items: center; gap: 8px; min-height: 30px; font-size: 13px; }
+  .wrow.req .wval { opacity: 0.35; }
+  .fsw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+  .fsw.inl { margin: 0 6px 0 0; vertical-align: 0; }
+  .wval { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-2); }
+  .wval input {
+    width: 3em; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; padding: 2px 5px;
+    color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; appearance: textfield; -moz-appearance: textfield;
+  }
+  .wval input::-webkit-inner-spin-button, .wval input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .wreq {
+    font: inherit; font-size: 12px; line-height: 1.3; width: 100%; padding: 2px 0; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--axis); background: var(--surface); color: var(--ink-2);
+  }
+  .wreq[aria-pressed="true"] { background: var(--match-soft); border-color: var(--match); color: var(--ink); font-weight: 600; }
+  .wval input:focus-visible, .wreq:focus-visible { outline: 2px solid var(--match); outline-offset: 1px; }
+  .sfoot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 30px; }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: var(--surface); font-weight: 600; padding: 4px 12px; }
+  .btn.primary:hover { color: var(--surface); opacity: 0.85; }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .snote { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
   @media (max-width: 1060px) { .layout { grid-template-columns: minmax(0, 1fr); } }
@@ -173,6 +217,27 @@
   .curve-list button:hover .cl-name { text-decoration: underline; }
   .cl-name { display: block; font-weight: 600; }
   .cl-meta { display: block; color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .skey { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--ink-2); margin: 0 0 6px; }
+  .skey span { display: inline-flex; align-items: center; }
+  .rank-list { list-style: none; margin: 0; padding: 0; }
+  .rank-list li { border-bottom: 1px solid var(--grid); }
+  .rank-list button {
+    display: grid; grid-template-columns: 1.7em minmax(0, 1fr) auto; column-gap: 4px; width: 100%; text-align: left;
+    font: inherit; color: inherit; background: none; border: 0; padding: 7px 2px 8px; cursor: pointer;
+  }
+  .rank-list button:hover .rk-name { text-decoration: underline; }
+  .rank-list button:focus-visible, .panel .btn:focus-visible { outline: 2px solid var(--match); outline-offset: 1px; }
+  .rk-n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .rk-name { font-weight: 600; }
+  .rk-s { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rk-meta { grid-column: 2 / 4; color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+  /* The track is the 0-100 scale; each segment is one factor's points, split by a 2px gap in the track colour. */
+  .strack { grid-column: 2 / 4; display: block; height: 8px; margin-top: 5px; border-radius: 4px; background: var(--surface); }
+  .sbar { display: flex; gap: 2px; height: 100%; }
+  .sbar i { display: block; height: 100%; min-width: 1px; }
+  .sbar i:last-child { border-radius: 0 4px 4px 0; }
+  .more { margin: 10px 0 0; }
+  .stbl .of { color: var(--muted); font-weight: 400; }
 
   .notes { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; margin: 14px 0 0; max-width: 125ch; }
   .notes p { margin: 0 0 4px; }
@@ -265,8 +330,11 @@
   // Filled by live_chart\refresh.ps1. Model fields: n name, s AA slug, cr maker, ii Intelligence Index, c cost per Index task
   // (USD, AA reference price), refIn/refOut reference price per 1M tokens, ow open weights, dep superseded, rd release date,
   // or OpenRouter id, lg languages {es, ca: named|general|'' , src, note, test {es, ca, date, note}},
+  // tpt output tokens per Index task, tps output tokens per second (tpsSrc family|hosts when borrowed), pt/pa total and active
+  // parameters in billions (open models), sc Artificial Analysis size class,
   // pv [provider, cost per task, source AA|AAP|OR|EU|CI, note, in, out, flags {k host, dpa, tr trains, rt retains, eu, tl tools}]
   // cheapest first. META.providers rows: name, models, sources, EU seen, dpa, dpa source, note, trains, retains, days, HQ, data centres.
+  // META.sizeMed: median size (billions) of open models per size class, the estimate for models without a published size.
   const META = /*META*/{}/*END*/;
   const DATA = /*DATA*/[]/*END*/;
   // true in the copy for the public link (refresh.ps1 -Public): our internal file paths are hidden.
@@ -460,8 +528,160 @@
       : `No requirements selected: all ${DATA.length} models at their cheapest provider.`;
   }
 
+  // ---------- score ----------
+  // A weighted score out of 100 for the models that meet the selected requirements. Each factor is scaled from 0 (worst)
+  // to 1 (best) across every tracked model, cost and footprint on a log scale, and counts by its weight's share of the
+  // total. A factor that is also a requirement can be set to Required: that is its card above switched on, so every ranked
+  // model meets it and it drops out of the score.
+  const FACTORS = [
+    { key: "lang", name: "Spanish and Catalan", w: 40, req: true, group: "lang", tip: "Full points per language when the maker names it or it passed Appats' test; half when the maker only claims “most languages”" },
+    { key: "ii", name: "Intelligence", w: 20, group: "ii", tip: "Artificial Analysis Intelligence Index" },
+    { key: "cost", name: "Cost per task", w: 20, group: "cost", tip: "At the provider scored; lower is better (log scale)" },
+    { key: "foot", name: "Environmental footprint", w: 10, group: "foot", tip: "Model size × generation time per task; lower is better (log scale)" },
+    { key: "dpa", name: "GDPR Art. 28 DPA", w: 2, req: true, group: "prov", tip: "The provider scored publishes a DPA or signs one on request" },
+    { key: "eu", name: "EU/EEA only", w: 2, req: true, group: "prov", tip: "The provider scored processes the data in the EU/EEA" },
+    { key: "train", name: "Never trained on", w: 2, req: true, group: "prov", tip: "The provider scored does not train on prompts" },
+    { key: "keep", name: "Keeps no data", w: 2, req: true, group: "prov", tip: "The provider scored keeps no prompts by default" },
+    { key: "tools", name: "Tool calling", w: 2, req: true, group: "prov", tip: "The provider scored supports tool calling (escalation to L3, hand-over)" }
+  ];
+  const PROV = ["dpa", "eu", "train", "keep", "tools"];
+  // One ranking-bar colour per group; the five provider checks share one.
+  const GROUPS = [
+    { key: "lang", name: "Spanish and Catalan", color: "--f1" },
+    { key: "ii", name: "Intelligence", color: "--f2" },
+    { key: "cost", name: "Cost per task", color: "--f3" },
+    { key: "foot", name: "Environmental footprint", color: "--f4" },
+    { key: "prov", name: "Provider checks", color: "--f5" }
+  ];
+  const W0 = Object.fromEntries(FACTORS.map(f => [f.key, f.w]));
+  let W = { ...W0 };
+  {
+    // ?w=40,20,20,10,2,2,2,2,2 sets the weights in the order above; ?score=1 opens the page on the ranking.
+    const w = (params.get("w") || "").split(",");
+    if (w.length === FACTORS.length && w.every(v => /^\s*\d{1,3}\s*$/.test(v))) FACTORS.forEach((f, i) => { W[f.key] = Math.min(100, +w[i]); });
+  }
+  let showScore = params.get("score") === "1";
+  const isReq = f => !!f.req && isOn(f.key, F);
+  const wSum = () => FACTORS.reduce((a, f) => a + (isReq(f) ? 0 : W[f.key]), 0);
+  // Each factor's maximum points under the current weights and requirements; set by rescore().
+  let PTS = {};
+  const maxPoints = k => PTS[k] || 0;
+  const groupMax = g => FACTORS.reduce((a, f) => a + (f.group === g ? maxPoints(f.key) : 0), 0);
+  const fmtPts = v => String(+v.toFixed(1));
+
+  // Per language: Appats' test result when there is one, otherwise the maker's documentation.
+  const LANG_PTS = { named: 1, general: 0.5 };
+  const langPart = (doc, test) => (test ? (testPass(test) ? 1 : 0) : LANG_PTS[doc] || 0);
+  const langScore = d => { const l = d.lg || {}, t = l.test || {}; return (langPart(l.es, t.es) + langPart(l.ca, t.ca)) / 2; };
+  // Footprint: billions of parameters × seconds of generation per task (output tokens ÷ output speed). A size the maker
+  // does not publish is estimated as the median size of open models in the same Artificial Analysis size class.
+  const SIZE_MED = META.sizeMed || {};
+  const fmtB = v => (v >= 1000 ? `${+(v / 1000).toPrecision(2)}T` : `${+v.toPrecision(3)}B`);
+  const sizeOf = d => (d.pt > 0 ? d.pt : SIZE_MED[d.sc] || null);
+  const secsOf = d => (d.tpt > 0 && d.tps > 0 ? d.tpt / d.tps : null);
+  const footOf = d => { const s = sizeOf(d), t = secsOf(d); return s && t ? s * t : null; };
+  const logSpan = vals => { const v = vals.filter(x => x > 0).map(Math.log); return v.length > 1 ? [Math.min(...v), Math.max(...v)] : null; };
+  // 1 at the lowest value of the span, 0 at the highest, on a log scale; null when unknown.
+  const lowIsGood = (v, span) => (v > 0 && span && span[1] > span[0] ? Math.min(1, Math.max(0, (span[1] - Math.log(v)) / (span[1] - span[0]))) : null);
+  const II_LO = Math.min(...DATA.map(d => d.ii)), II_HI = Math.max(...DATA.map(d => d.ii));
+  const COST_SPAN = logSpan(DATA.map(d => { const b = cheapest(d); return b ? b[1] : d.c; }));
+  const FOOT_SPAN = logSpan(DATA.map(footOf));
+
+  // Sub-scores from 0 to 1 for model d at provider p (null: no provider price). A provider check scores 1 when met and 0
+  // when not met or unknown; a missing footprint counts as 0.5.
+  function subScores(d, p) {
+    const s = {
+      lang: langScore(d),
+      ii: II_HI > II_LO ? (d.ii - II_LO) / (II_HI - II_LO) : 1,
+      cost: lowIsGood(p ? p[1] : d.c, COST_SPAN),
+      foot: lowIsGood(footOf(d), FOOT_SPAN)
+    };
+    for (const k of PROV) s[k] = p && MEETS[k](flagsOf(p)) ? 1 : 0;
+    return s;
+  }
+  const pointsOf = (sub, k) => maxPoints(k) * (sub[k] ?? 0.5);
+  // A model's score at whichever of its qualifying providers scores highest (the cheaper one on a tie).
+  function scoreModel(d, G) {
+    const offers = priced(d).filter(p => offerOK(p, G));
+    let best = null;
+    for (const p of offers.length ? offers : [null]) {
+      const sub = subScores(d, p), s = FACTORS.reduce((a, f) => a + pointsOf(sub, f.key), 0);
+      if (!best || s > best.s + 1e-9 || (s > best.s - 1e-9 && p && best.p && p[1] < best.p[1])) best = { d, p, sub, s };
+    }
+    return best;
+  }
+  function rescore() {
+    const sum = wSum();
+    PTS = Object.fromEntries(FACTORS.map(f => [f.key, sum && !isReq(f) ? W[f.key] / sum * 100 : 0]));
+    state.rank = showScore && sum ? state.M.map(x => scoreModel(x.d, F)).sort((a, b) => b.s - a.s || b.d.ii - a.d.ii) : [];
+    state.rankOf = new Map(state.rank.map((r, i) => [r.d, { r, i }]));
+  }
+
+  function buildScore() {
+    const card = document.createElement("div");
+    card.className = "fcard scard";
+    card.innerHTML =
+      `<div class="shead"><span class="fname">Score</span><span class="snote" id="stotal"></span></div>` +
+      `<div class="wgrid">${FACTORS.map(f => `<div class="wrow" id="wr-${f.key}">` +
+        `<label for="w-${f.key}" title="${esc(f.tip)}">${esc(f.name)}</label>` +
+        `<span class="wval"><input id="w-${f.key}" data-w="${f.key}" type="number" min="0" max="100" step="1" inputmode="numeric" value="${W[f.key]}">%</span>` +
+        (f.req ? `<button type="button" class="wreq" data-req="${f.key}" aria-pressed="false" aria-label="${esc(f.name)}: required" title="Only models that meet it; the same as its card">Required</button>` : `<span></span>`) +
+        `</div>`).join("")}` +
+      `<div class="sfoot"><button type="button" class="btn primary" id="show-score"></button><button type="button" class="btn" id="reset-w">Reset weights</button></div></div>`;
+    $("fgrid").appendChild(card);
+    // Required switches the factor's requirement card on or off.
+    card.addEventListener("click", e => {
+      const b = e.target.closest("button[data-req]");
+      if (!b) return;
+      const k = b.dataset.req;
+      F[k] = isOn(k, F) ? DEFAULTS[k] : FDEF.find(x => x.key === k).on;
+      update();
+    });
+    let raf = 0;
+    card.addEventListener("input", e => {
+      const k = e.target.dataset.w;
+      if (!k) return;
+      const v = parseInt(e.target.value, 10);
+      W[k] = Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(scoreChanged);
+    });
+    card.addEventListener("change", e => { const k = e.target.dataset.w; if (k) e.target.value = W[k]; });
+    $("show-score").addEventListener("click", () => {
+      showScore = !showScore;
+      if (showScore) { selected = null; sortKey = "Score"; sortDir = -1; }
+      scoreChanged();
+      if (showScore) $("panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    $("reset-w").addEventListener("click", () => {
+      W = { ...W0 };
+      for (const f of FACTORS) $("w-" + f.key).value = W[f.key];
+      scoreChanged();
+    });
+  }
+  function syncScoreCard() {
+    const ws = wSum();
+    $("stotal").textContent = `Total ${ws}%` + (ws === 100 ? "" : ws ? " · scaled to 100" : " · set a weight");
+    for (const f of FACTORS) {
+      const req = isReq(f), row = $("wr-" + f.key);
+      row.classList.toggle("req", req);
+      $("w-" + f.key).disabled = req;
+      if (f.req) row.querySelector(".wreq").setAttribute("aria-pressed", String(req));
+    }
+    const b = $("show-score");
+    b.textContent = showScore ? "Hide results" : "Show results";
+    b.disabled = !ws && !showScore;
+    $("reset-w").hidden = FACTORS.every(f => W[f.key] === W0[f.key]);
+  }
+  function scoreChanged() {
+    syncScoreCard();
+    rescore();
+    render();
+    buildTable();
+  }
+
   // ---------- state ----------
-  const state = { M: [], match: new Set(), front: [], baseFront: [], sameCurve: true };
+  const state = { M: [], match: new Set(), front: [], baseFront: [], sameCurve: true, rank: [], rankOf: new Map() };
   // ?model=<name> opens the page on one model's details.
   let selected = DATA.find(d => d.n === params.get("model")) || null;
 
@@ -474,6 +694,8 @@
     state.baseFront = frontier(DATA.map(d => ({ d, cost: costOf(d, DEFAULTS) })));
     state.sameCurve = state.baseFront.length === state.front.length &&
       state.baseFront.every((p, i) => p.d === state.front[i].d && Math.abs(p.cost - state.front[i].cost) < 1e-12);
+    syncScoreCard();
+    rescore();
     for (const f of FDEF) {
       const imp = impactFor(f, M), el = $("fi-" + f.key);
       el.textContent = imp.text;
@@ -499,7 +721,9 @@
   const dpaKnown = PROVIDERS.filter(p => p[4] === "yes" || p[4] === "request").length;
   $("notes").innerHTML = [
     `<p><b>How to read it:</b> each dot is a model at one reasoning setting. Blue dots meet the selected requirements and sit at the cheapest provider that meets all of them; grey dots do not, and sit at their cheapest provider. The solid staircase is the trade-off curve: the smartest qualifying model at each price. The dashed staircase is the same curve without requirements, so the gap between the two is what the requirements cost.<span class="live-only"> Under each requirement: the models it removes, the best Intelligence Index left, and the median change in price for the same intelligence.</span></p>`,
-    `<p><b>Where the requirements come from:</b> the D4 hard filters (Spanish and Catalan, DPA, Guardrails) and the conditions for live-chat endpoints (EU processing, no training, no data kept). DPA status was researched per host on 23 Sep 2026: ${dpaKnown} hosts have one; hosts marked "not found" or "not checked" count as having none<span class="live-only"> (sources in the provider table below<span class="internal">; kept in live_chart\\hosts.csv</span>)</span>. Training and retention are each host's default policy as published by OpenRouter. EU/EEA covers OpenAI EU data residency, OpenRouter EU in-region routing, hosts' EU regions and EU-only hosts. Tool calling comes from Artificial Analysis and OpenRouter endpoint data. Spanish and Catalan come from the makers' documentation<span class="live-only internal"> (live_chart\\languages.csv)</span> and Appats' own test results<span class="live-only internal"> (live_chart\\appats_tests.csv)</span>. Not covered: environmental footprint (no per-model data yet) and data export and deletion (check each DPA).</p>`,
+    `<p><b>Where the requirements come from:</b> the D4 hard filters (Spanish and Catalan, DPA, Guardrails) and the conditions for live-chat endpoints (EU processing, no training, no data kept). DPA status was researched per host on 23 Sep 2026: ${dpaKnown} hosts have one; hosts marked "not found" or "not checked" count as having none<span class="live-only"> (sources in the provider table below<span class="internal">; kept in live_chart\\hosts.csv</span>)</span>. Training and retention are each host's default policy as published by OpenRouter. EU/EEA covers OpenAI EU data residency, OpenRouter EU in-region routing, hosts' EU regions and EU-only hosts. Tool calling comes from Artificial Analysis and OpenRouter endpoint data. Spanish and Catalan come from the makers' documentation<span class="live-only internal"> (live_chart\\languages.csv)</span> and Appats' own test results<span class="live-only internal"> (live_chart\\appats_tests.csv)</span>. Environmental footprint is not a requirement<span class="live-only"> (it counts in the score instead, see below)</span>, and data export and deletion depend on each DPA.</p>`,
+    `<p class="live-only"><b>Score:</b> ranks the models that meet the selected requirements by the weights set under Score; each weight counts as its share of the total. Every factor runs from nothing for the worst tracked model to full points for the best, with cost and footprint on a log scale because they span more than 1,000×. Spanish and Catalan earn full points per language when the maker names it or it passed Appats' test, half when the maker only claims "most languages", and none when it is undocumented or failed. Each provider check (DPA, EU/EEA, training, data kept, tool calling) earns its points when the provider scored meets it, and none when it does not or it is unknown. A model is scored at whichever qualifying provider gives it the highest score, so its price and provider checks come from the same provider. "Required" is the same as switching on the factor's card above: models that miss it drop out, and it no longer counts in the score. A missing footprint counts as average.</p>`,
+    `<p class="live-only"><b>Footprint</b> is a relative estimate, not grams of CO₂: model size (billions of parameters) × seconds of generation per task, that is output tokens per Intelligence Index task ÷ output speed, both measured by Artificial Analysis. ${DATA.filter(d => d.pt > 0).length} models publish their size; for the other ${DATA.filter(d => !(d.pt > 0) && SIZE_MED[d.sc]).length} it is the median size of open models Artificial Analysis puts in the same size class, released in the last 12 months (${Object.entries(SIZE_MED).map(([k, v]) => `${esc(k)} ${fmtB(v)}`).join(", ") || "not available in this refresh"}). It leaves out batching, the hardware and the electricity mix where the model runs.</p>`,
     `<p><b>Cost per task:</b> what Artificial Analysis paid to run one Intelligence Index task, reasoning included. It ranks models; it does not budget chats, which are much shorter. OpenRouter's Business plan (needed for its EU routing and DPA) adds an 8% fee that is not included.</p>`,
     `<p><b>Providers:</b> ${PROVIDERS.length} hosts. Artificial Analysis measures cost per task at most hosts it lists. For the others, the cost is estimated as reference cost × the host's token price ÷ the reference price. ` +
       (est ? `Where Artificial Analysis did measure (${est.n} hosts), the measured cost was within 25% of this estimate for ${pct(est.within)} of them, and the middle 80% ran from ${est.p10}× to ${est.p90}× the estimate, so treat estimates as a guide. ` : "") +
@@ -670,14 +894,16 @@
     return `Catalan ${LANG_WORD[l.ca || ""] || esc(l.ca)} · ${t}`;
   }
   function tipHTML(p) {
-    const d = p.d, why = fails(d, F), n = priced(d).length;
+    const d = p.d, why = fails(d, F), n = priced(d).length, x = state.rankOf.get(d);
+    const shown = state.match.has(d) ? bestOffer(d, F) : cheapest(d);
     return [
       `<b>${esc(d.n)}</b> <span class="m">${esc(d.cr)}</span>`,
       `Index <b>${d.ii.toFixed(1)}</b> · <b>${fmt(p.cost)}</b> per task <span class="m">(${whereText(d)})</span>`,
+      x ? `Score <b>${x.r.s.toFixed(1)}</b> · rank ${x.i + 1} of ${state.rank.length}${x.r.p && x.r.p !== shown ? ` <span class="m">(scored at ${esc(x.r.p[0])}, ${fmt(x.r.p[1])})</span>` : ""}` : "",
       `<span class="m">${langLine(d)}</span>`,
       `<span class="m">${why.length ? `Does not meet: ${reasonText(why)}` : "Meets the selected requirements"}</span>`,
       `<span class="m">Click for ${n ? `all ${n} providers` : "details"}</span>`
-    ].join("<br>");
+    ].filter(Boolean).join("<br>");
   }
   function showTip(p) {
     const box = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
@@ -712,24 +938,87 @@
   }
   const byName = n => DATA.find(e => e.n === n);
 
+  // What an offering's flags say for each provider check: the chips' titles and the score breakdown.
+  const FLAG_TEXT = {
+    dpa: f => ({ yes: "DPA published", request: "DPA signed on request", no: "no DPA", "not found": "no public DPA found" }[f.dpa] || "DPA not checked"),
+    eu: f => (f.eu === 1 ? "processed in the EU/EEA" : "not shown as EU processing"),
+    train: f => (f.tr == null ? "training policy unknown" : f.tr === 0 ? "does not train on prompts" : "may train on prompts"),
+    keep: f => (f.rt == null ? "retention unknown" : f.rt === 0 ? "keeps no prompts" : "keeps prompts"),
+    tools: f => (f.tl == null ? "tool calling unknown" : f.tl === 1 ? "supports tool calling" : "no tool calling")
+  };
   // One chip per requirement: met, not met, or unknown.
   function chips(f) {
-    const chip = (state, label, title) => `<span class="chip ${state}" title="${esc(title)}">${label}</span>`;
+    const chip = (state, label, k) => `<span class="chip ${state}" title="${esc(FLAG_TEXT[k](f))}">${label}</span>`;
     const tri = (v, okWhen) => (v == null ? "unk" : v === okWhen ? "ok" : "no");
     const dpaState = f.dpa === "yes" || f.dpa === "request" ? "ok" : f.dpa === "no" || f.dpa === "not found" ? "no" : "unk";
-    const dpaTitle = { yes: "DPA published", request: "DPA signed on request", no: "no DPA", "not found": "no public DPA found" }[f.dpa] || "DPA not checked";
     return `<span class="chips">` +
-      chip(dpaState, f.dpa === "request" ? "DPA on request" : "DPA", dpaTitle) +
-      chip(f.eu === 1 ? "ok" : "no", "EU/EEA", f.eu === 1 ? "processed in the EU/EEA" : "not shown as EU processing") +
-      chip(tri(f.tr, 0), "no training", f.tr == null ? "training policy unknown" : f.tr === 0 ? "does not train on prompts" : "may train on prompts") +
-      chip(tri(f.rt, 0), "keeps no data", f.rt == null ? "retention unknown" : f.rt === 0 ? "keeps no prompts" : "keeps prompts") +
-      chip(tri(f.tl, 1), "tool calling", f.tl == null ? "tool calling unknown" : f.tl === 1 ? "supports tool calling" : "no tool calling") +
+      chip(dpaState, f.dpa === "request" ? "DPA on request" : "DPA", "dpa") +
+      chip(f.eu === 1 ? "ok" : "no", "EU/EEA", "eu") +
+      chip(tri(f.tr, 0), "no training", "train") +
+      chip(tri(f.rt, 0), "keeps no data", "keep") +
+      chip(tri(f.tl, 1), "tool calling", "tools") +
       `</span>`;
+  }
+
+  // The ranking (Show results): the top 10, or every ranked model. One bar segment per group of factors.
+  let rankAll = false;
+  const groupLabel = g => (g.key === "prov" ? FACTORS.filter(f => f.group === "prov" && maxPoints(f.key) > 0).map(f => REQ_LABEL[f.key]).join(", ") : g.name);
+  function rankRow(r, i) {
+    const segs = GROUPS.map(g => [g, FACTORS.reduce((a, f) => a + (f.group === g.key ? pointsOf(r.sub, f.key) : 0), 0)]).filter(([, v]) => v >= 0.05)
+      .map(([g, v]) => `<i style="flex:${v.toFixed(2)} 1 0;background:var(${g.color})" title="${esc(groupLabel(g))}: ${fmtPts(v)} of ${fmtPts(groupMax(g.key))} points"></i>`).join("");
+    return `<li><button type="button" data-n="${esc(r.d.n)}"><span class="rk-n">${i + 1}</span><span class="rk-name">${esc(short(r.d.n))}</span><span class="rk-s">${r.s.toFixed(1)}</span>` +
+      `<span class="rk-meta">${r.p ? `${esc(r.p[0])} · ` : ""}index ${r.d.ii.toFixed(1)} · ${fmt(r.p ? r.p[1] : r.d.c)} per task</span>` +
+      `<span class="strack" aria-hidden="true"><span class="sbar" style="width:${Math.max(0, r.s).toFixed(1)}%">${segs}</span></span></button></li>`;
+  }
+  function rankHTML() {
+    const R = state.rank;
+    if (!wSum()) return `<h2>Score ranking</h2><p class="muted">Set at least one weight above 0%.</p>`;
+    if (!R.length) return `<h2>No model meets these requirements</h2><p class="muted">Each requirement card shows how many models it removes.</p>`;
+    const shown = rankAll ? R : R.slice(0, 10);
+    const key = GROUPS.filter(g => groupMax(g.key) > 0).map(g => `<span><i class="fsw inl" style="background:var(${g.color})"></i>${esc(groupLabel(g))} ${fmtPts(groupMax(g.key))}</span>`).join("");
+    return `<h2>Score ranking</h2>` +
+      `<p class="muted">${R.length === DATA.length ? `All ${R.length} models` : `The ${R.length} models that meet the selected requirements`}, scored out of 100 at the provider that scores best for these weights. The bar shows where the points come from; click a model for the breakdown.</p>` +
+      `<p class="skey">${key}</p>` +
+      `<ol class="rank-list">${shown.map(rankRow).join("")}</ol>` +
+      (R.length > 10 ? `<p class="more"><button type="button" class="btn" id="rank-more">${rankAll ? "Show the top 10" : `Show all ${R.length}`}</button></p>` : "");
+  }
+  // One row per factor: what the model has, and the points it earns out of the factor's share.
+  function factorValue(k, d, p) {
+    const l = d.lg || {}, t = l.test || {};
+    const lw = (doc, test) => (test ? (testPass(test) ? "passed Appats' test" : "failed Appats' test") : { named: "named", general: "most languages" }[doc] || "not documented");
+    if (k === "lang") return `Spanish ${lw(l.es, t.es)} · Catalan ${lw(l.ca, t.ca)}`;
+    if (k === "ii") return `Index ${d.ii.toFixed(1)}`;
+    if (k === "cost") return `${fmt(p ? p[1] : d.c)} per task`;
+    if (FLAG_TEXT[k]) return p ? FLAG_TEXT[k](flagsOf(p)) : "no provider price";
+    const s = sizeOf(d), sec = secsOf(d);
+    if (!s || !sec) return "No data; counted as average";
+    const size = d.pt > 0 ? `${fmtB(s)} parameters` : `~${fmtB(s)} parameters (not published; median of open ${d.sc} models)`;
+    const speed = d.tpsSrc === "family" ? ", speed of its other reasoning levels" : d.tpsSrc === "hosts" ? ", speed at its hosts" : "";
+    return `${size} × ${Math.round(sec)} s (${Math.round(d.tpt).toLocaleString("en-US")} tokens at ${Math.round(d.tps)} tokens/s${speed})`;
+  }
+  function scoreHTML(d) {
+    const x = state.rankOf.get(d);
+    if (!x) return `<h3>Score</h3><p class="muted">Not ranked: it does not meet the selected requirements.</p>`;
+    const { r, i } = x;
+    const color = f => GROUPS.find(g => g.key === f.group).color;
+    const rows = FACTORS.filter(f => maxPoints(f.key) > 0).map(f => `<tr><td><span class="pname"><i class="fsw inl" style="background:var(${color(f)})"></i>${esc(f.name)}</span><span class="src">${esc(factorValue(f.key, d, r.p))}</span></td>` +
+      `<td class="cost">${pointsOf(r.sub, f.key).toFixed(1)} <span class="of">/ ${fmtPts(maxPoints(f.key))}</span></td></tr>`).join("");
+    const req = FACTORS.filter(isReq).map(f => f.name);
+    return `<h3>Score</h3><p class="lang"><b>${r.s.toFixed(1)}</b> of 100 · rank ${i + 1} of ${state.rank.length}</p>` +
+      `<p class="muted">Scored at ${r.p ? esc(r.p[0]) : "the reference price"}, its provider with the highest score for these weights.${req.length ? ` Required, so met and not scored: ${esc(req.join(", "))}.` : ""}</p>` +
+      `<table class="plist stbl"><tbody>${rows}</tbody></table>`;
   }
 
   function renderPanel() {
     if (EXPORT) return;
     const panel = $("panel");
+    if (!selected && showScore) {
+      panel.innerHTML = rankHTML();
+      panel.querySelectorAll(".rank-list button").forEach(b => b.addEventListener("click", () => { const d = byName(b.dataset.n); if (d) select(d, true); }));
+      const more = $("rank-more");
+      if (more) more.addEventListener("click", () => { rankAll = !rankAll; renderPanel(); });
+      return;
+    }
     if (!selected) {
       const fr = state.front;
       panel.innerHTML = fr.length
@@ -770,11 +1059,12 @@
     const links = [`<a href="https://artificialanalysis.ai/models/${encodeURIComponent(d.s || "")}" target="_blank" rel="noopener">Artificial Analysis</a>`];
     if (d.or) links.push(`<a href="https://openrouter.ai/${encodeURI(d.or)}" target="_blank" rel="noopener">OpenRouter</a>`);
     panel.innerHTML =
-      `<p class="back"><button type="button" class="btn" id="back">← Trade-off curve</button></p>` +
+      `<p class="back"><button type="button" class="btn" id="back">← ${showScore ? "Score ranking" : "Trade-off curve"}</button></p>` +
       `<h2>${esc(d.n)}</h2>` +
       `<p class="meta">${esc(d.cr)} · ${d.ow ? "open weights" : "proprietary"} · released ${fmtDate(d.rd)}${d.dep ? " · superseded" : ""}</p>` +
       status +
       `<dl class="stats">${stats.map(r => `<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("")}</dl>` +
+      (showScore ? scoreHTML(d) : "") +
       `<h3>Spanish and Catalan</h3>${langs}` +
       `<h3>All providers (${pv.length})</h3>` +
       (pv.length ? `<p class="chip-key">✓ meets · crossed out: does not · ?: unknown.${anyReq ? " Rows marked green meet every selected requirement." : ""}</p><table class="plist"><tbody>${rows}</tbody></table>` : `<p class="muted">No provider prices found.</p>`) +
@@ -803,6 +1093,8 @@
   const COLS = [
     { h: "Model", v: d => d.n, cell: d => `<span class="sw" style="background:var(${state.match.has(d) ? "--match" : "--other"})"></span>${esc(d.n)}` },
     { h: "Maker", v: d => d.cr, cell: d => esc(d.cr) },
+    // Shown with the results only.
+    { h: "Score", score: true, num: true, v: d => { const x = state.rankOf.get(d); return x ? x.r.s : -1; }, cell: d => { const x = state.rankOf.get(d); return x ? x.r.s.toFixed(1) : "n/a"; } },
     { h: "Index", v: d => d.ii, cell: d => d.ii.toFixed(1), num: true },
     { h: "Cost per task", v: d => (state.match.has(d) ? costOf(d, F) : Infinity), cell: d => (state.match.has(d) ? fmt(costOf(d, F)) : "n/a"), num: true },
     { h: "At", v: d => { const b = state.match.has(d) ? bestOffer(d, F) : null; return b ? b[0] : "~"; }, cell: d => { const b = state.match.has(d) ? bestOffer(d, F) : null; return b ? esc(b[0]) : ""; } },
@@ -812,21 +1104,24 @@
     { h: "Qualifying providers", v: d => qualifying(d), cell: d => `${qualifying(d)} of ${priced(d).length}`, num: true },
     { h: "Requirements not met", v: d => fails(d, F).length, cell: d => { const w = fails(d, F); return w.length ? reasonText(w) : "none"; }, wrap: true }
   ];
-  let sortCol = 2, sortDir = -1;
+  let sortKey = showScore ? "Score" : "Index", sortDir = -1;
   function buildTable() {
     if (EXPORT) return;
+    const cols = COLS.filter(c => !c.score || showScore);
+    let sc = cols.find(c => c.h === sortKey);
+    if (!sc) { sortKey = "Index"; sortDir = -1; sc = cols.find(c => c.h === sortKey); }
     const only = $("only-match").checked;
     const rows = DATA.filter(d => !only || state.match.has(d)).sort((a, b) => {
-      const va = COLS[sortCol].v(a), vb = COLS[sortCol].v(b);
+      const va = sc.v(a), vb = sc.v(b);
       return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
     });
-    const head = COLS.map((c, i) => `<th class="${c.num ? "num" : ""}" aria-sort="${i === sortCol ? (sortDir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-i="${i}">${c.h}${i === sortCol ? (sortDir > 0 ? " ▲" : " ▼") : ""}</button></th>`).join("");
-    const body = rows.map(d => `<tr class="pick-row${state.match.has(d) ? "" : " out"}" tabindex="0" data-n="${esc(d.n)}">${COLS.map(c => `<td class="${c.num ? "num" : c.wrap ? "wrap" : ""}">${c.cell(d)}</td>`).join("")}</tr>`).join("");
+    const head = cols.map(c => `<th class="${c.num ? "num" : ""}" aria-sort="${c === sc ? (sortDir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-h="${c.h}">${c.h}${c === sc ? (sortDir > 0 ? " ▲" : " ▼") : ""}</button></th>`).join("");
+    const body = rows.map(d => `<tr class="pick-row${state.match.has(d) ? "" : " out"}" tabindex="0" data-n="${esc(d.n)}">${cols.map(c => `<td class="${c.num ? "num" : c.wrap ? "wrap" : ""}">${c.cell(d)}</td>`).join("")}</tr>`).join("");
     const tbl = $("tbl");
     tbl.innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
     tbl.querySelectorAll("th button").forEach(b => b.addEventListener("click", () => {
-      const i = +b.dataset.i;
-      if (i === sortCol) sortDir = -sortDir; else { sortCol = i; sortDir = COLS[i].num ? -1 : 1; }
+      const c = cols.find(x => x.h === b.dataset.h);
+      if (c.h === sortKey) sortDir = -sortDir; else { sortKey = c.h; sortDir = c.num ? -1 : 1; }
       buildTable();
     }));
     const pickRow = tr => { const d = byName(tr.dataset.n); if (d) { select(d, false); $("panel").scrollIntoView({ behavior: "smooth", block: "nearest" }); } };
@@ -851,6 +1146,8 @@
   }
 
   buildFilters();
+  buildScore();
+  syncScoreCard();
   buildProviders();
   update();
   if (!EXPORT) {

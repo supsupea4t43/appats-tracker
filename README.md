@@ -17,4 +17,4 @@ Edit these files here on GitHub (pencil icon, then **Commit changes**); the page
 
 ## Sources
 
-Artificial Analysis (models and API providers leaderboards, plus one model page for model sizes and output tokens per task), OpenRouter (models, EU list and provider data policies), Cheaper Inference (markets), Softcatalà's Catalan tests (only the few numbers shown, with credit and a link; their repository has no licence file) and each host's DPA page. Artificial Analysis data is shown with attribution, as its terms require.
+Artificial Analysis (models and API providers leaderboards, plus one model page for model sizes, output tokens per task and the release dates the leaderboard leaves out), OpenRouter (models, EU list and provider data policies), Cheaper Inference (markets), Softcatalà's Catalan tests (only the few numbers shown, with credit and a link; their repository has no licence file) and each host's DPA page. Artificial Analysis data is shown with attribution, as its terms require.

@@ -6,7 +6,8 @@
   All sources are public; nothing is published anywhere.
     Artificial Analysis  models + API providers leaderboards   intelligence, cost per task, output speed, and the cost,
                                                              token price and tool calling of every host it lists
-                         one model page                       model size and output tokens per task (footprint score)
+                         one model page                       model size and output tokens per task (footprint score),
+                                                              release dates the leaderboard leaves out
     OpenRouter           model list, per-model endpoints and    live token prices and tool calling per host;
                          provider data policies                 whether each host trains on or keeps prompts
     OpenRouter EU        EU model list + per-model endpoints     which models run in the EU, on which host, at what price
@@ -48,8 +49,15 @@ $root = Split-Path $here -Parent
 $utf8 = New-Object System.Text.UTF8Encoding $false
 $inv = [Globalization.CultureInfo]::InvariantCulture
 
-# OpenAI API models with EU data residency (developers.openai.com/api/docs/guides/your-data, checked 23 Sep 2026).
-$openAIEU = @('GPT-6 Luna', 'GPT-6 Sol', 'GPT-5.6 Luna')
+# OpenAI API models with EU data residency, processing included: the "Supported models and snapshots" of the
+# /v1/chat/completions and /v1/responses rows in developers.openai.com/api/docs/guides/your-data (checked 28 Sep 2026),
+# without snapshot dates. The "Regional processing snapshot exceptions" column is not the list: it only limits
+# GPT-6 Sol and Luna to Standard processing in the EU. The 10% uplift applies to models released from 5 Mar 2026.
+$openAIEU = @('gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.5-pro',
+  'gpt-5.4', 'gpt-5.4-pro', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.2', 'gpt-5.2-pro', 'gpt-5.1', 'gpt-5', 'gpt-5-pro', 'gpt-5-mini',
+  'gpt-5-nano', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'o3', 'o3-mini', 'o4-mini', 'o1', 'o1-pro', 'gpt-4o', 'gpt-4o-mini',
+  'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo')
+$openAIEUUpliftFrom = '2026-03-05'
 # Softcatala ids of the self-hosted models in the box below the model table (they cannot be plotted).
 $selfHostedCatalan = @('salamandra-7b')
 $maxSupersededAgeDays = 180
@@ -459,17 +467,21 @@ $cutoff = (Get-Date).ToUniversalTime().AddDays(-$maxSupersededAgeDays).ToString(
 $rows = New-Object System.Collections.ArrayList
 $zero = New-Object System.Collections.ArrayList
 $estRatios = New-Object System.Collections.ArrayList   # measured / estimated cost at hosts AA measured, to check the estimate
+$estHosts = New-Object 'System.Collections.Generic.HashSet[string]'
+$notShown = [ordered]@{ index = 0; cost = 0; superseded = 0 }
 foreach ($m in $metrics.Values) {
-  if ($null -eq $m.intelligenceIndex -or $m.intelligenceIndexIsEstimated) { continue }
+  if ($null -eq $m.intelligenceIndex -or $m.intelligenceIndexIsEstimated) { $notShown.index++; continue }
   $c = $m.intelligenceIndexCostPerTask
-  if ($null -eq $c) { continue }
+  if ($null -eq $c) { $notShown.cost++; continue }
   $name = $(if ($m.shortName) { $m.shortName } else { $m.name })
   $key = Get-Key $name
   $keyLong = Get-Key $m.name
   $euHit = $(if ($euByKey.ContainsKey($key)) { $euByKey[$key] } elseif ($euByKey.ContainsKey($keyLong)) { $euByKey[$keyLong] } else { $null })
   $viaOpenAI = ($openAIKeys -contains $key)
+  # Release date from the leaderboard, else from the model page (the leaderboard leaves it out for most reasoning levels).
   $rd = $release[$m.slug]
-  if ($m.deprecated -and (-not ($euHit -or $viaOpenAI) -or ($rd -and $rd -lt $cutoff))) { continue }
+  if (-not $rd -and [string]$details[[string]$m.slug].rd -match '^\d{4}-\d{2}-\d{2}') { $rd = $Matches[0] }
+  if ($m.deprecated -and (-not ($euHit -or $viaOpenAI) -or ($rd -and $rd -lt $cutoff))) { $notShown.superseded++; continue }
   if ([double]$c -le 0) { [void]$zero.Add($name); continue }
 
   $refIn = [double]$m.price1mInputTokens
@@ -524,7 +536,7 @@ foreach ($m in $metrics.Values) {
       $src = 'AA'
       if ($pk -ne $makerKey -and $hasPrice) {
         $est = Get-Scaled $c $refIn $refOut $pin $pout
-        if ($est -gt 0) { [void]$estRatios.Add([double]$e.c / $est) }
+        if ($est -gt 0) { [void]$estRatios.Add([double]$e.c / $est); [void]$estHosts.Add($pk) }
       }
     }
     elseif ($hasPrice) {
@@ -561,11 +573,14 @@ foreach ($m in $metrics.Values) {
     }
   }
   if ($viaOpenAI -and $refIn -gt 0) {
-    # EU data residency: +10% for models released from 5 Mar 2026; zero data retention subject to OpenAI's approval.
+    # EU data residency: +10% for models released from 5 Mar 2026 (and when the date is unknown); zero data retention
+    # subject to OpenAI's approval.
+    $up = $(if (-not $rd -or $rd -ge $openAIEUUpliftFrom) { 1.1 } else { 1.0 })
     $flags = Get-Flags $openAIHost $true 1 $null
     $flags.tr = 0
     $flags.rt = 0
-    $entries.Add([object[]]@('OpenAI API, EU data residency', (Round3 ([double]$c * 1.1)), 'EU', '+10%; zero data retention on approval', (Round3 ($refIn * 1.1)), (Round3 ($refOut * 1.1)), $flags))
+    $euNote = $(if ($up -gt 1) { '+10%' } else { 'list price (released before 5 Mar 2026)' }) + '; zero data retention on approval'
+    $entries.Add([object[]]@('OpenAI API, EU data residency', (Round3 ([double]$c * $up)), 'EU', $euNote, (Round3 ($refIn * $up)), (Round3 ($refOut * $up)), $flags))
   }
   if ($euHit) {
     foreach ($ep in (Get-Endpoints 'https://eu.openrouter.ai' $euHit.id)) {
@@ -600,6 +615,7 @@ if ($estRatios.Count -ge 20) {
   $pick = { param($q) [math]::Round($sorted[[int][math]::Floor($q * ($sorted.Count - 1))], 2) }
   $estCheck = [ordered]@{
     n      = $sorted.Count
+    hosts  = $estHosts.Count
     within = [math]::Round(@($sorted | Where-Object { $_ -ge 0.8 -and $_ -le 1.25 }).Count / $sorted.Count, 2)
     p10    = (& $pick 0.1)
     p50    = (& $pick 0.5)
@@ -630,7 +646,7 @@ foreach ($v in $dir.Values) {
   $provList.Add([object[]]@($v.name, $v.models.Count, ((@($v.src) | Sort-Object) -join '+'), [bool]$v.eu,
       $(if ($i) { $i.dpa } else { '' }), $(if ($i) { $i.src } else { '' }), $(if ($i) { $i.note } else { '' }),
       $(if ($i) { $i.tr } else { $null }), $(if ($i) { $i.rt } else { $null }), $(if ($i) { $i.days } else { $null }),
-      $(if ($i) { $i.hq } else { '' }), $(if ($i) { $i.dc } else { '' })))
+      $(if ($i) { $i.hq } else { '' }), $(if ($i) { $i.dc } else { '' }), $(if ($i) { $i.checked } else { '' })))
 }
 $provArr = [Linq.Enumerable]::ToArray([Linq.Enumerable]::OrderByDescending($provList, [Func[object, double]] { param($p) [double]$p[1] }))
 
@@ -681,12 +697,14 @@ Write-Page $metaJson $dataJson
 
 $aaProv = @($provArr | Where-Object { $_[2] -match 'AA' }).Count
 $dpaCount = { param($s) @($provArr | Where-Object { $_[4] -eq $s }).Count }
+$ciRows = @($rows | Where-Object { @($_.pv | Where-Object { $null -ne $_ -and $_[2] -eq 'CI' }).Count }).Count
 $lines = @(
-  "Refreshed $($meta.asOf): $($rows.Count) models."
-  "Provider pool: $($provArr.Count) hosts ($aaProv listed by Artificial Analysis, the rest priced from OpenRouter, its EU list or Cheaper Inference); Cheaper Inference prices for $($ciByKey.Count) models."
+  ('Refreshed {0}: {1} models shown of {2} on the Artificial Analysis leaderboard (not shown: {3} without a measured Intelligence Index, {4} without a cost per task, {5} superseded, {6} listed at $0).' -f
+    $meta.asOf, $rows.Count, $metrics.Count, $notShown.index, $notShown.cost, $notShown.superseded, $zero.Count)
+  "Provider pool: $($provArr.Count) hosts ($aaProv listed by Artificial Analysis, the rest priced from OpenRouter, its EU list or Cheaper Inference); Cheaper Inference lists $($ciByKey.Count) models, matched to $ciRows of the tracker's (counting each reasoning level)."
   ('DPA (hosts.csv): published by {0} hosts, on request at {1}, none at {2}, not found at {3}, not checked at {4}.' -f (& $dpaCount 'yes'), (& $dpaCount 'request'), (& $dpaCount 'no'), (& $dpaCount 'not found'), (& $dpaCount ''))
 )
-if ($estCheck) { $lines += 'Estimate check: at {0} hosts Artificial Analysis measured, the estimate from token prices was within 25% for {1}% of them (middle 80%: {2}x to {3}x).' -f $estCheck.n, [math]::Round($estCheck.within * 100), $estCheck.p10.ToString($inv), $estCheck.p90.ToString($inv) }
+if ($estCheck) { $lines += 'Estimate check: at {0} model-host pairs Artificial Analysis measured ({1} hosts; the makers'' own APIs are left out), the estimate from token prices was within 25% for {2}% of them (middle 80%: {3}x to {4}x).' -f $estCheck.n, $estCheck.hosts, [math]::Round($estCheck.within * 100), $estCheck.p10.ToString($inv), $estCheck.p90.ToString($inv) }
 $lines += ('Footprint inputs: output tokens per task for {0} of {1} models; output speed for {2} ({3} taken from other reasoning levels or hosts); size published for {4}, estimated from the size class for {5} ({6}).' -f
   @($rows | Where-Object { $_.tpt }).Count, $rows.Count, @($rows | Where-Object { $_.tps }).Count, @($rows | Where-Object { $_.tpsSrc }).Count,
   @($rows | Where-Object { $_.pt }).Count, @($rows | Where-Object { -not $_.pt -and $_.sc -and $sizeMed.Contains($_.sc) }).Count,

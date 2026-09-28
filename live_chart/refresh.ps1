@@ -7,20 +7,24 @@
     Artificial Analysis  models + API providers leaderboards   intelligence, cost per task, output speed, and the cost,
                                                              token price and tool calling of every host it lists
                          one model page                       model size and output tokens per task (footprint score)
-    OpenRouter           model list, per-model endpoints and    live token prices, EU regions and tool calling per host;
+    OpenRouter           model list, per-model endpoints and    live token prices and tool calling per host;
                          provider data policies                 whether each host trains on or keeps prompts
     OpenRouter EU        EU model list + per-model endpoints     which models run in the EU, on which host, at what price
     Cheaper Inference    markets page                            marketplace (reseller) prices
+    Softcatala           Catalan test results (llms.json)        CLAM, instruction following and keeping to Catalan, shown
+                                                                 in model details only (not in requirements or the score)
   Appats' requirements also come from three files in live_chart\ that the team keeps up to date:
     hosts.csv            each host's DPA (GDPR Art. 28) status and source; optional overrides for training, retention, EU-only
     languages.csv        which makers name Spanish and Catalan as supported languages
     appats_tests.csv     Appats' own Spanish and Catalan test results per model (pass or fail)
+  plus catalan_tests_map.csv, which matches Softcatala's model names to the tracker's (a regex per row).
   Writes, in the project folder:
     d4_intelligence_vs_cost.html   the page (self-contained; open it in any browser, or send the file)
     d4_intelligence_vs_cost.png    image for the Google Doc, with the filters in $pngView (skip with -NoPng)
     live_chart\data.json           merged data set
     live_chart\summary.txt         model counts, provider pool, DPA coverage and today's trade-off curves, in plain text
-  Nothing is replaced unless every required source parsed. Cheaper Inference and the OpenRouter data policies are optional.
+  Nothing is replaced unless every required source parsed. Cheaper Inference, Softcatala and the OpenRouter data policies
+  are optional.
 
 .PARAMETER NoPng    Skip the PNG render.
 .PARAMETER Open     Open the page in the default browser when done.
@@ -46,6 +50,8 @@ $inv = [Globalization.CultureInfo]::InvariantCulture
 
 # OpenAI API models with EU data residency (developers.openai.com/api/docs/guides/your-data, checked 23 Sep 2026).
 $openAIEU = @('GPT-6 Luna', 'GPT-6 Sol', 'GPT-5.6 Luna')
+# Softcatala ids of the self-hosted models in the box below the model table (they cannot be plotted).
+$selfHostedCatalan = @('salamandra-7b')
 $maxSupersededAgeDays = 180
 # Filters applied in the PNG, as the page's URL parameters: all=1 (every Appats requirement), or any of
 # lang=named|tested, dpa=1, eu=1, notrain=1, noretain=1, tools=1. '' shows every model with no filter.
@@ -394,6 +400,33 @@ try {
   }
 } catch { Write-Warning "Cheaper Inference skipped: $($_.Exception.Message)" }
 
+# --- 4b. Softcatala Catalan tests (optional; shown in model details, not used in requirements or the score) ----
+# Keeps only the numbers the page shows, for the models matched in catalan_tests_map.csv and the self-hosted ones:
+# Softcatala's repository has no licence file, so its full table is not republished.
+Write-Host 'Softcatala Catalan tests...'
+$scById = @{}
+$scCount = 0
+try {
+  $scRows = @((Get-Json 'https://raw.githubusercontent.com/Softcatala/ai-eval-catalan/prod-data/llms.json').data | Where-Object { $_.model })
+  $scCount = $scRows.Count
+  $ifevals = @($scRows | ForEach-Object { Get-Num $_.ifeval_prompt_strict } | Where-Object { $null -ne $_ } | Sort-Object -Descending)
+  foreach ($x in $scRows) {
+    $id = ([string]$x.model -replace '^\(\*\)\s*', '').Trim()   # "(*) " marks the models run through a cloud API
+    $ife = Get-Num $x.ifeval_prompt_strict
+    $scById[$id] = [ordered]@{
+      id = $id; clam = (Get-Num $x.clam); ifeval = $ife; keep = (Get-Num $x.catalan_drift_pass_rate)
+      ifRank = $(if ($null -ne $ife) { [array]::IndexOf($ifevals, $ife) + 1 } else { $null }); n = $scCount
+      cloud = ($x.cloud -eq $true); q = [string]$x.quantization
+      tested = $(if ($x.cloud -eq $true) { '' } else { [string]$x.repo_url -replace '^.*/', '' -replace '-GGUF$', '' })
+    }
+  }
+} catch { Write-Warning "Softcatala Catalan tests skipped: $($_.Exception.Message)" }
+$catalanMap = @(foreach ($mp in (Read-Config 'catalan_tests_map.csv')) { if ($mp.softcatala_model -and $mp.tracker_match) { $mp } })
+if ($scCount) {
+  foreach ($mp in $catalanMap) { if (-not $scById.ContainsKey([string]$mp.softcatala_model)) { Write-Warning "catalan_tests_map.csv: $($mp.softcatala_model) is not in Softcatala's results." } }
+}
+$catalanHits = @{}
+
 # --- 5. Appats' language evidence --------------------------------------------------------------
 $langRows = Read-Config 'languages.csv'
 $testByName = @{}
@@ -463,6 +496,14 @@ foreach ($m in $metrics.Values) {
   elseif ($familySpeed.ContainsKey($fam)) { $row.tps = [math]::Round((Get-Median $familySpeed[$fam]), 1); $row.tpsSrc = 'family' }
   elseif ($hostSpeeds.Count) { $row.tps = [math]::Round((Get-Median $hostSpeeds), 1); $row.tpsSrc = 'hosts' }
   $row.lg = Get-Lang $maker $name
+  foreach ($mp in $catalanMap) {
+    $sid = [string]$mp.softcatala_model
+    if ($name -notmatch $mp.tracker_match -or -not $scById.ContainsKey($sid)) { continue }
+    $t = $scById[$sid]
+    $row.ct = [ordered]@{ id = $sid; clam = $t.clam; ifeval = $t.ifeval; keep = $t.keep; cloud = $t.cloud; q = $t.q; note = [string]$mp.note }
+    $catalanHits[$sid] = $true
+    break
+  }
 
   # Every offering of this model. Entry: provider, cost per task, source, note, input and output price per 1M tokens, flags.
   #  - every host Artificial Analysis lists (measured cost where it has one, otherwise an estimate from its token price);
@@ -501,24 +542,22 @@ foreach ($m in $metrics.Values) {
     $row.or = $orId
     $bestOR = @{}
     foreach ($ep in (Get-Endpoints 'https://openrouter.ai' $orId)) {
+      # EU-tagged endpoints (azure/eu, google-vertex/europe) are skipped: bought through OpenRouter they carry OpenRouter's
+      # DPA, not the host's, and the same routes are added below from eu.openrouter.ai as "OpenRouter EU via <host>".
+      if ([string]$ep.tag -match '/(eu|europe)') { continue }
       $pk = Get-ProvKey ([string]$ep.provider_name)
-      $isEU = ([string]$ep.tag -match '/(eu|europe)')
-      if ($listed.ContainsKey($pk) -and -not $isEU) { continue }
+      if ($listed.ContainsKey($pk)) { continue }
       $pin = [double]$ep.pricing.prompt * 1e6
       $pout = [double]$ep.pricing.completion * 1e6
       if ($pin -le 0 -and $pout -le 0) { continue }
       $blend = 3 * $pin + $pout
-      $slot = $(if ($isEU) { "$pk|eu" } else { $pk })
-      if (-not $bestOR.ContainsKey($slot) -or $blend -lt $bestOR[$slot].blend) {
-        $bestOR[$slot] = @{ name = [string]$ep.provider_name; tag = [string]$ep.tag; q = [string]$ep.quantization; pin = $pin; pout = $pout; blend = $blend; eu = $isEU; tl = (Get-Tools $ep.supported_parameters) }
+      if (-not $bestOR.ContainsKey($pk) -or $blend -lt $bestOR[$pk].blend) {
+        $bestOR[$pk] = @{ name = [string]$ep.provider_name; q = [string]$ep.quantization; pin = $pin; pout = $pout; blend = $blend; tl = (Get-Tools $ep.supported_parameters) }
       }
     }
     foreach ($v in $bestOR.Values) {
-      $notes = @()
-      if ($v.q -and $v.q -ne 'unknown') { $notes += $v.q }
-      if ($v.eu) { $region = $v.tag -replace '^[^/]*/', ''; $notes += $(if ($region -eq 'eu') { 'EU region' } else { "EU region $region" }) }
-      $label = $(if ($v.eu) { "$($v.name) (EU region)" } else { $v.name })
-      $entries.Add([object[]]@($label, (Get-Scaled $c $refIn $refOut $v.pin $v.pout), 'OR', ($notes -join ', '), (Round3 $v.pin), (Round3 $v.pout), (Get-Flags (Find-Host $v.name) $v.eu $v.tl $null)))
+      $note = $(if ($v.q -and $v.q -ne 'unknown') { $v.q } else { '' })
+      $entries.Add([object[]]@($v.name, (Get-Scaled $c $refIn $refOut $v.pin $v.pout), 'OR', $note, (Round3 $v.pin), (Round3 $v.pout), (Get-Flags (Find-Host $v.name) $false $v.tl $null)))
     }
   }
   if ($viaOpenAI -and $refIn -gt 0) {
@@ -549,6 +588,10 @@ foreach ($m in $metrics.Values) {
 }
 $rows = @($rows | Sort-Object @{ Expression = { $_.ii }; Descending = $true }, @{ Expression = { $_.c } })
 if ($rows.Count -lt 60) { throw "Only $($rows.Count) models survived the merge; keeping the previous page." }
+foreach ($mp in $catalanMap) {
+  $sid = [string]$mp.softcatala_model
+  if ($scById.ContainsKey($sid) -and -not $catalanHits.ContainsKey($sid)) { Write-Warning "catalan_tests_map.csv: '$($mp.tracker_match)' matches no model in the tracker." }
+}
 
 # How good is the estimate (reference cost x price ratio)? Compare it with the hosts AA did measure.
 $estCheck = $null
@@ -571,7 +614,7 @@ foreach ($r in $rows) {
   foreach ($p in @($r.pv)) {
     if ($null -eq $p) { continue }
     $f = $p[6]
-    $hostName = $(if ($p[2] -eq 'EU' -and $p[0] -like 'OpenRouter EU via *') { 'OpenRouter' } elseif ($p[2] -eq 'EU') { 'OpenAI' } else { ([string]$p[0] -replace ' \(EU region\)$', '') -replace $tierWords, '' })
+    $hostName = $(if ($p[2] -eq 'EU' -and $p[0] -like 'OpenRouter EU via *') { 'OpenRouter' } elseif ($p[2] -eq 'EU') { 'OpenAI' } else { [string]$p[0] -replace $tierWords, '' })
     $pk = Get-ProvKey $hostName
     if (-not $dir.ContainsKey($pk)) {
       $dir[$pk] = @{ name = $hostName; models = New-Object 'System.Collections.Generic.HashSet[string]'; src = New-Object 'System.Collections.Generic.HashSet[string]'; eu = $false; info = (Find-Host $hostName) }
@@ -629,6 +672,7 @@ $meta = [ordered]@{
   providers = $provArr
   sizeMed   = $sizeMed
   sizeN     = $sizeN
+  catalan   = [ordered]@{ n = $scCount; self = @(foreach ($id in $selfHostedCatalan) { if ($scById.ContainsKey($id)) { $scById[$id] } }) }
 }
 $dataJson = ConvertTo-Json -InputObject $rows -Depth 8 -Compress
 $metaJson = ConvertTo-Json -InputObject $meta -Depth 8 -Compress
@@ -648,7 +692,12 @@ $lines += ('Footprint inputs: output tokens per task for {0} of {1} models; outp
   @($rows | Where-Object { $_.pt }).Count, @($rows | Where-Object { -not $_.pt -and $_.sc -and $sizeMed.Contains($_.sc) }).Count,
   (($sizeMed.Keys | ForEach-Object { '{0} {1}B' -f $_, ([double]$sizeMed[$_]).ToString($inv) }) -join ', '))
 $lines += (Get-CurveLine 'Trade-off curve, every model at its cheapest host' $anyItems)
-$lines += (Get-CurveLine 'Trade-off curve, all Appats requirements (ES/CA named, DPA, EU, no training, no retention, tool calling)' $reqItems)
+$lines += (Get-CurveLine ('Trade-off curve, all Appats requirements (ES/CA named, DPA, EU, no training, no retention, tool calling; {0} of {1} models qualify)' -f $reqItems.Count, $rows.Count) $reqItems)
+$ctRows = @($rows | Where-Object { $_.ct })
+$lines += $(if ($scCount) {
+    'Softcatala Catalan tests: {0} models in their results; shown for {1} tracker models ({2}) and {3} self-hosted ({4}).' -f $scCount, $ctRows.Count,
+    ((@($ctRows | ForEach-Object { $_.ct.id }) | Sort-Object -Unique) -join ', '), @($meta.catalan.self).Count, ((@($meta.catalan.self) | ForEach-Object { $_.id }) -join ', ')
+  } else { 'Softcatala Catalan tests: not available in this refresh.' })
 [IO.File]::WriteAllText((Join-Path $here 'summary.txt'), ($lines -join "`r`n") + "`r`n", $utf8)
 
 # --- 10. PNG for the Google Doc ------------------------------------------------------------------

@@ -4,7 +4,7 @@ Anthropic,yes,https://www.anthropic.com/legal/data-processing-addendum,"DPA inco
 Google,yes,https://cloud.google.com/terms/data-processing-addendum,"Cloud Data Processing Addendum covers Vertex AI; EU regions available.",,,,2026-09-23
 Azure,yes,https://www.microsoft.com/licensing/docs/view/Microsoft-Products-and-Services-Data-Protection-Addendum-DPA,"Microsoft Products and Services DPA; EU regions available.",,,,2026-09-23
 Amazon Bedrock,yes,https://d1.awsstatic.com/legal/aws-dpa/aws-dpa.pdf,"AWS DPA is part of the AWS Customer Agreement; EU regions available.",,,,2026-09-23
-Mistral,yes,https://legal.mistral.ai/terms/data-processing-addendum/,"French company; API data hosted in the EU by default.",,,yes,2026-09-23
+Mistral,yes,https://legal.mistral.ai/terms/data-processing-addendum/,"French company; API data hosted in the EU by default. Zero data retention on paid plans once Mistral approves a request (docs.mistral.ai/admin/monitor-comply/zero-data-retention); assumed approved, as for OpenAI's EU route.",,no,yes,2026-09-28
 SpaceXAI,yes,https://x.ai/legal/data-processing-addendum,"DPA for API and business services; 30-day retention unless zero data retention is enabled.",,,,2026-09-23
 Alibaba Cloud,yes,https://www.alibabacloud.com/help/en/legal/latest/fe2cxg,"DPA with SCCs; international Model Studio runs in Singapore.",,,,2026-09-23
 Groq,yes,https://console.groq.com/docs/legal/customer-data-processing-addendum,"DPA with SCCs; customer data held in the US.",,,,2026-09-23

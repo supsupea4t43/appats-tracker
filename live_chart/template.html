@@ -242,6 +242,11 @@
   .notes { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; margin: 14px 0 0; max-width: 125ch; }
   .notes p { margin: 0 0 4px; }
   .notes b { color: var(--ink); font-weight: 600; }
+  .selfhost { background: var(--tile); border-radius: 10px; padding: 12px 14px; margin: 14px 0 0; max-width: 125ch; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+  .selfhost h2 { font-size: 14px; font-weight: 600; color: var(--ink); margin: 0 0 4px; }
+  .selfhost p { margin: 0 0 4px; }
+  .selfhost b { color: var(--ink); font-weight: 600; }
+  .selfhost a { color: inherit; }
   .tip {
     position: absolute; pointer-events: none; z-index: 5; max-width: 340px;
     background: var(--tip-bg); color: var(--ink); border: 1px solid var(--border); border-radius: 8px;
@@ -318,6 +323,7 @@
       <label class="only"><input type="checkbox" id="only-match"> Only models that meet the selected requirements</label>
       <div class="table-scroll"><table class="data" id="tbl"></table></div>
     </details>
+    <section class="selfhost live-only" id="selfhost" aria-labelledby="selfhost-title"></section>
     <details id="prov-view">
       <summary id="prov-summary">All providers</summary>
       <div class="table-scroll"><table class="data" id="ptbl"></table></div>
@@ -332,9 +338,11 @@
   // or OpenRouter id, lg languages {es, ca: named|general|'' , src, note, test {es, ca, date, note}},
   // tpt output tokens per Index task, tps output tokens per second (tpsSrc family|hosts when borrowed), pt/pa total and active
   // parameters in billions (open models), sc Artificial Analysis size class,
+  // ct Softcatala Catalan tests {id, clam, ifeval, keep, cloud, q quantisation, note} for models in catalan_tests_map.csv,
   // pv [provider, cost per task, source AA|AAP|OR|EU|CI, note, in, out, flags {k host, dpa, tr trains, rt retains, eu, tl tools}]
   // cheapest first. META.providers rows: name, models, sources, EU seen, dpa, dpa source, note, trains, retains, days, HQ, data centres.
   // META.sizeMed: median size (billions) of open models per size class, the estimate for models without a published size.
+  // META.catalan: {n models in Softcatala's results, self [the same fields plus ifRank and tested, for the self-hosted box]}.
   const META = /*META*/{}/*END*/;
   const DATA = /*DATA*/[]/*END*/;
   // true in the copy for the public link (refresh.ps1 -Public): our internal file paths are hidden.
@@ -485,11 +493,11 @@
     { key: "dpa", name: "Data processing agreement", on: "req", opts: [["any", "Any"], ["req", "GDPR Art. 28 DPA"]],
       note: "D4 hard filter. Counts hosts that publish a DPA or sign one on request (OpenRouter). Hosts with no DPA found drop out, including several of the cheapest." },
     { key: "eu", name: "Where data is processed", on: "req", opts: [["any", "Anywhere"], ["req", "EU/EEA only"]],
-      note: "Live chats must stay in the EU. Leaves OpenAI EU data residency, OpenRouter EU, EU-based hosts and hosts' EU regions, usually at about list +10%." },
+      note: "Live chats must stay in the EU. Leaves OpenAI EU data residency, OpenRouter EU routing and EU-based hosts, usually at about list +10%." },
     { key: "train", name: "Training on Appats' data", on: "req", opts: [["any", "Any"], ["req", "Never trained on"]],
       note: "Chats must not train anyone's model. Most API hosts do not by default; DeepSeek and a few others do." },
     { key: "keep", name: "Data kept by the host", on: "req", opts: [["any", "Any"], ["req", "Keeps no data"]],
-      note: "Hosts that keep prompts (often 30 days for abuse checks) drop out. OpenAI, Anthropic and Mistral offer zero retention on approval; this uses each host's default." },
+      note: "Hosts that keep prompts (often 30 days for abuse checks) drop out. Uses each host's default, with two assumptions: OpenAI's EU data residency and Mistral keep no data, as both grant zero retention on approval. Anthropic's, by separate agreement, is not assumed." },
     { key: "tools", name: "Guardrails and hand-over", on: "req", opts: [["any", "Any"], ["req", "Tool calling"]],
       note: "Forcing health and nutrition questions to L3 and handing chats to a person (the Fallback Mechanism) needs tool calling. The test set still has to prove escalation works." }
   ];
@@ -721,7 +729,7 @@
   const dpaKnown = PROVIDERS.filter(p => p[4] === "yes" || p[4] === "request").length;
   $("notes").innerHTML = [
     `<p><b>How to read it:</b> each dot is a model at one reasoning setting. Blue dots meet the selected requirements and sit at the cheapest provider that meets all of them; grey dots do not, and sit at their cheapest provider. The solid staircase is the trade-off curve: the smartest qualifying model at each price. The dashed staircase is the same curve without requirements, so the gap between the two is what the requirements cost.<span class="live-only"> Under each requirement: the models it removes, the best Intelligence Index left, and the median change in price for the same intelligence.</span></p>`,
-    `<p><b>Where the requirements come from:</b> the D4 hard filters (Spanish and Catalan, DPA, Guardrails) and the conditions for live-chat endpoints (EU processing, no training, no data kept). DPA status was researched per host on 23 Sep 2026: ${dpaKnown} hosts have one; hosts marked "not found" or "not checked" count as having none<span class="live-only"> (sources in the provider table below<span class="internal">; kept in live_chart\\hosts.csv</span>)</span>. Training and retention are each host's default policy as published by OpenRouter. EU/EEA covers OpenAI EU data residency, OpenRouter EU in-region routing, hosts' EU regions and EU-only hosts. Tool calling comes from Artificial Analysis and OpenRouter endpoint data. Spanish and Catalan come from the makers' documentation<span class="live-only internal"> (live_chart\\languages.csv)</span> and Appats' own test results<span class="live-only internal"> (live_chart\\appats_tests.csv)</span>. Environmental footprint is not a requirement<span class="live-only"> (it counts in the score instead, see below)</span>, and data export and deletion depend on each DPA.</p>`,
+    `<p><b>Where the requirements come from:</b> the D4 hard filters (Spanish and Catalan, DPA, Guardrails) and the conditions for live-chat endpoints (EU processing, no training, no data kept). DPA status was researched per host on 23 Sep 2026: ${dpaKnown} hosts have one; hosts marked "not found" or "not checked" count as having none<span class="live-only"> (sources in the provider table below<span class="internal">; kept in live_chart\\hosts.csv</span>)</span>. Training and retention are each host's default policy as published by OpenRouter, with two assumptions: OpenAI's EU data residency and Mistral count as keeping no data, because both grant zero data retention on approval and approval is assumed. EU/EEA covers OpenAI EU data residency, OpenRouter EU in-region routing (with OpenRouter's DPA) and EU-only hosts. Tool calling comes from Artificial Analysis and OpenRouter endpoint data. Spanish and Catalan come from the makers' documentation<span class="live-only internal"> (live_chart\\languages.csv)</span> and Appats' own test results<span class="live-only internal"> (live_chart\\appats_tests.csv)</span>. Environmental footprint is not a requirement<span class="live-only"> (it counts in the score instead, see below)</span>, and data export and deletion depend on each DPA.</p>`,
     `<p class="live-only"><b>Score:</b> ranks the models that meet the selected requirements by the weights set under Score; each weight counts as its share of the total. Every factor runs from nothing for the worst tracked model to full points for the best, with cost and footprint on a log scale because they span more than 1,000×. Spanish and Catalan earn full points per language when the maker names it or it passed Appats' test, half when the maker only claims "most languages", and none when it is undocumented or failed. Each provider check (DPA, EU/EEA, training, data kept, tool calling) earns its points when the provider scored meets it, and none when it does not or it is unknown. A model is scored at whichever qualifying provider gives it the highest score, so its price and provider checks come from the same provider. "Required" is the same as switching on the factor's card above: models that miss it drop out, and it no longer counts in the score. A missing footprint counts as average.</p>`,
     `<p class="live-only"><b>Footprint</b> is a relative estimate, not grams of CO₂: model size (billions of parameters) × seconds of generation per task, that is output tokens per Intelligence Index task ÷ output speed, both measured by Artificial Analysis. ${DATA.filter(d => d.pt > 0).length} models publish their size; for the other ${DATA.filter(d => !(d.pt > 0) && SIZE_MED[d.sc]).length} it is the median size of open models Artificial Analysis puts in the same size class, released in the last 12 months (${Object.entries(SIZE_MED).map(([k, v]) => `${esc(k)} ${fmtB(v)}`).join(", ") || "not available in this refresh"}). It leaves out batching, the hardware and the electricity mix where the model runs.</p>`,
     `<p><b>Cost per task:</b> what Artificial Analysis paid to run one Intelligence Index task, reasoning included. It ranks models; it does not budget chats, which are much shorter. OpenRouter's Business plan (needed for its EU routing and DPA) adds an 8% fee that is not included.</p>`,
@@ -730,7 +738,7 @@
       `Quantised endpoints are included, and Cheaper Inference is a reseller.</p>`,
     `<p>Not shown: models without a measured cost${zero ? `, models listed at $0 (${esc(zero)})` : ""}, and superseded models released more than 180 days ago. ` +
       `Sources: <a href="https://artificialanalysis.ai/leaderboards/models" target="_blank" rel="noopener">Artificial Analysis</a> models and API providers leaderboards, ` +
-      `<a href="https://openrouter.ai/models" target="_blank" rel="noopener">OpenRouter</a> models, EU list and provider data policies, <a href="https://www.cheaperinference.com/markets" target="_blank" rel="noopener">Cheaper Inference</a> markets, and each host's DPA page.</p>`
+      `<a href="https://openrouter.ai/models" target="_blank" rel="noopener">OpenRouter</a> models, EU list and provider data policies, <a href="https://www.cheaperinference.com/markets" target="_blank" rel="noopener">Cheaper Inference</a> markets, <span class="live-only"><a href="https://www.softcatala.org/ia-local/models-en-catala/llm/" target="_blank" rel="noopener">Softcatalà</a>'s Catalan tests (model details only; not used in the requirements or the score), </span>and each host's DPA page.</p>`
   ].join("");
 
   // ---------- chart ----------
@@ -1009,6 +1017,33 @@
       `<table class="plist stbl"><tbody>${rows}</tbody></table>`;
   }
 
+  // Softcatalà's Catalan tests: shown in model details and the self-hosted box, not used in the requirements or the score.
+  const SOFTCATALA = "https://www.softcatala.org/ia-local/models-en-catala/llm/";
+  const num = (v, dp) => (v == null ? "n/a" : String(+v.toFixed(dp)));
+  const bits = q => { const m = /^q(\d+)/i.exec(q || ""); return m ? `${m[1]}-bit` : q || "local"; };
+  function catalanTestsHTML(t) {
+    const how = t.cloud ? "through the cloud API" : `as a ${esc(bits(t.q))} local copy`;
+    return `<p class="lang">Catalan tests (${link(SOFTCATALA, "Softcatalà")}): CLAM ${num(t.clam, 1)} of 100; following instructions ${num(t.ifeval, 3)}; keeps to Catalan ${num(t.keep, 2)}; tested ${how}${t.note ? ` (${esc(t.note)})` : ""}.</p>` +
+      `<p class="muted">Differences under 2 CLAM points are not conclusive.</p>`;
+  }
+  // Models that cannot be plotted (no Intelligence Index, no API price). Softcatalà's numbers come from the refresh; the rest
+  // was checked on 28 Sep 2026 (the model card on Hugging Face, Hetzner's GEX45 page).
+  const SELF_HOSTED = [
+    { id: "salamandra-7b", name: "Salamandra 7B Instruct", about: "BSC, Apache 2.0, 7.8B parameters",
+      card: "https://huggingface.co/BSC-LT/salamandra-7b-instruct-2606", server: "e.g. Hetzner GEX45 (EUR 214/month, Helsinki)" }
+  ];
+  function buildSelfHosted() {
+    const tests = (META.catalan || {}).self || [];
+    $("selfhost").innerHTML = `<h2 id="selfhost-title">Self-hosted models (not on the chart)</h2>` + SELF_HOSTED.map(s => {
+      const t = tests.find(x => x.id === s.id);
+      const rank = t && t.ifRank ? (t.ifRank === t.n ? ` (lowest of ${t.n})` : ` (rank ${t.ifRank} of ${t.n})`) : "";
+      const scores = t
+        ? `Softcatalà CLAM ${num(t.clam, 1)} of 100 (tested: ${esc(t.tested || s.id)}, ${esc(bits(t.q))}), following instructions ${num(t.ifeval, 3)}${rank}, keeps to Catalan ${num(t.keep, 2)}.`
+        : "Softcatalà's scores were not available in this refresh.";
+      return `<p><b>${esc(s.name)}</b> (${esc(s.about)}): no Intelligence Index and no API price. ${scores} Runs on your own server, ${esc(s.server)}. ${link(s.card, "Model card")} · ${link(SOFTCATALA, "Softcatalà's results")}</p>`;
+    }).join("") + `<p class="muted">Differences under 2 CLAM points are not conclusive.</p>`;
+  }
+
   function renderPanel() {
     if (EXPORT) return;
     const panel = $("panel");
@@ -1040,7 +1075,8 @@
     const l = d.lg || {};
     const langs = `<p class="lang">Spanish: ${LANG_WORD[l.es || ""] || esc(l.es)} · Catalan: ${LANG_WORD[l.ca || ""] || esc(l.ca)}</p>` +
       (l.note ? `<p class="muted">${esc(l.note)}${l.src ? ` ${link(l.src, "Source")}` : ""}</p>` : "") +
-      `<p class="muted">${l.test ? `Appats test: Spanish ${esc(l.test.es || "n/a")}, Catalan ${esc(l.test.ca || "n/a")}${l.test.date ? `, ${fmtDate(l.test.date)}` : ""}${l.test.note ? ` (${esc(l.test.note)})` : ""}` : "Not tested by Appats yet."}</p>`;
+      `<p class="muted">${l.test ? `Appats test: Spanish ${esc(l.test.es || "n/a")}, Catalan ${esc(l.test.ca || "n/a")}${l.test.date ? `, ${fmtDate(l.test.date)}` : ""}${l.test.note ? ` (${esc(l.test.note)})` : ""}` : "Not tested by Appats yet."}</p>` +
+      (d.ct ? catalanTestsHTML(d.ct) : "");
     const stats = [["Intelligence Index", d.ii.toFixed(1)]];
     if (bq) stats.push(["Cheapest provider that qualifies", `${fmt(bq[1])} · ${esc(bq[0])}`]);
     if (bc) stats.push(["Cheapest provider overall", `${fmt(bc[1])} · ${esc(bc[0])}`]);
@@ -1149,6 +1185,7 @@
   buildScore();
   syncScoreCard();
   buildProviders();
+  buildSelfHosted();
   update();
   if (!EXPORT) {
     let raf = 0, lastW = wrap.clientWidth;

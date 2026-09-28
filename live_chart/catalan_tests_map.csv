@@ -1,0 +1,7 @@
+softcatala_model,tracker_match,note
+gpt-6-astra,^GPT-6 Astra,default reasoning setting
+gemini-3-8-flash,^Gemini 3\.8 Flash,default reasoning setting
+gemini-3-1-preview,^Gemini 3\.1 Pro Preview$,default reasoning setting; run as gemini-3.1-pro-preview
+qwen3.8-27b,^Qwen3\.8 27B,
+ministral3-8b,^Ministral 3 8B$,
+ministral3-14b,^Ministral 3 14B$,

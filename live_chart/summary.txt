@@ -1,4 +1,4 @@
-Refreshed 2026-09-28T08:06:10Z: 128 models.
+Refreshed 2026-09-28T08:10:14Z: 128 models.
 Provider pool: 83 hosts (53 listed by Artificial Analysis, the rest priced from OpenRouter, its EU list or Cheaper Inference); Cheaper Inference prices for 66 models.
 DPA (hosts.csv): published by 22 hosts, on request at 1, none at 2, not found at 9, not checked at 49.
 Estimate check: at 302 hosts Artificial Analysis measured, the estimate from token prices was within 25% for 53% of them (middle 80%: 0.77x to 3.36x).
